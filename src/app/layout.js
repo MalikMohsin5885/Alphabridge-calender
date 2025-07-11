@@ -26,6 +26,8 @@ export default function RootLayout({ children }) {
       >
         {children}
       </body>
+      <script src="https://cdn.jsdelivr.net/npm/heroui-chat-script@0/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heroui-chat-script@beta/dist/select-and-edit-utils.global.js"></script>
     </html>
   );
 }
