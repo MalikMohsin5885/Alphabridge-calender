@@ -13,7 +13,7 @@ export default function Header() {
   const isSchedule = pathname === "/dashboard/schedule";
 
   return (
-    <header className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 shadow-md">
+    <header className="w-full flex items-center justify-between px-4 py-2 bg-transparent">
       {/* Left: Logo and Name */}
       <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1">
         <img src="/images/the_alphabridge_logo.jpg" alt="Logo" className="h-7 w-7 object-contain" />
