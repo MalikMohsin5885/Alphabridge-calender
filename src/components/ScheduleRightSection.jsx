@@ -194,6 +194,8 @@ export default function ScheduleRightSection() {
   const [editMode, setEditMode] = React.useState(false);
   const [editData, setEditData] = React.useState(null);
   const [hoveredMeetingId, setHoveredMeetingId] = React.useState(null);
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
   const groups = groupOverlappingMeetings(meetings);
   const maxOverlapping = Math.max(...groups.map(group => group.length));
@@ -340,9 +342,9 @@ export default function ScheduleRightSection() {
               <div className="flex items-center gap-2 mb-2">
                 <Clock className="w-4 h-4 text-blue-500" />
                 <span className="font-medium text-gray-700">
-                  {new Date(selectedMeeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {mounted ? new Date(selectedMeeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   {' - '}
-                  {new Date(selectedMeeting.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {mounted ? new Date(selectedMeeting.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                 </span>
               </div>
               <div className="flex items-center gap-2 mb-2">
