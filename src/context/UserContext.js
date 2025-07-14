@@ -1,22 +1,39 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getUserInfo, getAccessToken } from '../services/loginService';
+import { getAccessToken } from '../services/loginService';
+import { fetchUserProfile } from '../services/userService';
 
 const UserContext = createContext(null);
 
 export function UserProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("user_info");
+      return cached ? JSON.parse(cached) : null;
+    }
+    return null;
+  });
 
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
-      setUser(getUserInfo());
+      fetchAndSetUser(token);
     } else {
       setUser(null);
+      localStorage.removeItem("user_info");
     }
-    // Listen for login/logout events (optional: can use custom events or polling)
-    // For now, just run on mount
   }, []);
+
+  async function fetchAndSetUser(token) {
+    try {
+      const data = await fetchUserProfile(token);
+      setUser(data);
+      localStorage.setItem("user_info", JSON.stringify(data));
+    } catch (error) {
+      setUser(null);
+      localStorage.removeItem("user_info");
+    }
+  }
 
   return (
     <UserContext.Provider value={{ user, setUser }}>

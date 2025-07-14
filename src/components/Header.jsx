@@ -22,6 +22,15 @@ export default function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Loading state: don't render user info until loaded
+  if (user === null) {
+    return (
+      <header className="w-full flex items-center justify-between px-7 py-6 transition-all duration-300">
+        {/* Optionally, add a spinner or skeleton here */}
+      </header>
+    );
+  }
+
   return (
     <header
       className={`w-full flex items-center justify-between px-7 py-6 transition-all duration-300 ${
@@ -64,7 +73,7 @@ export default function Header() {
         <button className="relative p-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-100 transition">
           <IoNotifications className="w-5 h-5 text-gray-700" />
         </button>
-        {/* Profile Icon and User Info */}
+        {/* Profile Icon and User Info (no drawer) */}
         <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-200 text-gray-500 font-bold text-base">
             {user?.email ? user.email[0].toUpperCase() : "?"}
