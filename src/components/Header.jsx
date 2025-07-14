@@ -22,6 +22,15 @@ export default function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Loading state: don't render user info until loaded
+  if (user === null) {
+    return (
+      <header className="w-full flex items-center justify-between px-7 py-6 transition-all duration-300">
+        {/* Optionally, add a spinner or skeleton here */}
+      </header>
+    );
+  }
+
   return (
     <header
       className={`fixed top-4 left-1/2 z-40 -translate-x-1/2 w-[95vw] max-w-4xl flex items-center justify-between px-4 py-2 rounded-2xl shadow-xl border border-blue-100/60 bg-white/60 backdrop-blur-md transition-all duration-300
@@ -69,8 +78,8 @@ export default function Header() {
           <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-pink-500 rounded-full border-2 border-white animate-pulse" />
         </button>
         {/* Profile Icon and User Info */}
-        <div className="flex items-center gap-1 rounded-xl border border-blue-100 bg-white/80 px-2 py-1 shadow-sm">
-          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 text-blue-700 font-bold text-xs shadow-inner">
+        <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-200 text-gray-500 font-bold text-base">
             {user?.email ? user.email[0].toUpperCase() : "?"}
           </span>
           <div className="flex flex-col leading-tight">
