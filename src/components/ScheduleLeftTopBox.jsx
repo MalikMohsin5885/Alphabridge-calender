@@ -13,7 +13,7 @@ export default function ScheduleLeftTopBox() {
         <div>
           <h2 className="text-lg font-bold text-gray-800">Select Date</h2>
           <div className="text-sm text-gray-500 font-medium mt-1">
-            {date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            {date ? date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : ''}
           </div>
         </div>
         <Button variant="outline" size="sm" className="rounded-full px-4 py-1 text-xs font-semibold shadow-sm">Today</Button>

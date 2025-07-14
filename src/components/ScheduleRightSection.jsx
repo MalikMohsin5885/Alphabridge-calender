@@ -12,11 +12,24 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 
-const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
-  const hour = 9 + Math.floor(i / 2);
-  const minute = i % 2 === 0 ? '00' : '30';
-  return `${hour.toString().padStart(2, '0')}:${minute}`;
-});
+const TIME_SLOTS = (() => {
+  const slots = [];
+  let hour = 17; // 5 PM
+  let minute = 0;
+  while (!(hour === 2 && minute === 30)) {
+    const h = hour % 24;
+    slots.push(`${h.toString().padStart(2, '0')}:${minute === 0 ? '00' : '30'}`);
+    if (minute === 0) {
+      minute = 30;
+    } else {
+      minute = 0;
+      hour = (hour + 1) % 24;
+    }
+    // Stop at 2:00 AM
+    if (h === 2 && minute === 0) break;
+  }
+  return slots;
+})();
 
 const MEETING_BOX_WIDTH = 200; // px
 const MEETING_BOX_GAP = 16; // px
@@ -50,8 +63,8 @@ const initialMeetings = [
     id: 2,
     title: 'Client Call',
     description: 'Call with client to review project milestones.',
-    start: '11:00',
-    end: '12:30',
+    start: '18:00',
+    end: '20:30',
     start_time: '2025-06-12T11:00:00',
     end_time: '2025-06-12T12:30:00',
     created_by: { id: 102, name: 'Sara Khan' },
@@ -116,9 +129,15 @@ const initialMeetings = [
   },
 ];
 
+// Helper to get slot index from time string (now starting at 17:00)
 const getSlotIndex = (time) => {
   const [h, m] = time.split(':').map(Number);
-  return (h - 9) * 2 + (m === 30 ? 1 : 0);
+  // Calculate the slot index based on 17:00 as the start
+  let hour = h;
+  // If hour is less than 5 (AM), treat as next day (e.g., 1 AM = 25)
+  if (hour < 5) hour += 24;
+  const base = 17; // 17:00 is slot 0
+  return (hour - base) * 2 + (m === 30 ? 1 : 0);
 };
 
 const meetingsOverlap = (meeting1, meeting2) => {
