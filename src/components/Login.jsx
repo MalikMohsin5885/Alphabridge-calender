@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { login } from "../lib/loginService";
+import { login } from "../services/loginService";
 
 const Login = () => {
   const router = useRouter();

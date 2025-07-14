@@ -1,4 +1,16 @@
+'use client';
+
 import React from 'react';
+import { Plus, CalendarDays, User, Users, Clock, FileText, Pencil, X, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
   const hour = 9 + Math.floor(i / 2);
@@ -7,90 +19,129 @@ const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
 });
 
 const MEETING_BOX_WIDTH = 200; // px
-const MEETING_BOX_GAP = 12; // px
+const MEETING_BOX_GAP = 16; // px
 
-// Sample meetings with improved, light, aesthetic colors
-const meetings = [
+const allUsers = [
+  { id: 101, name: 'Ahmed Ali' },
+  { id: 102, name: 'Sara Khan' },
+  { id: 103, name: 'John Doe' },
+  { id: 104, name: 'Emily Smith' },
+];
+
+const initialMeetings = [
   {
     id: 1,
     title: 'Team Sync',
+    description: 'Daily team sync to discuss progress and blockers.',
     start: '09:30',
     end: '10:30',
-    color: 'bg-blue-100 border-blue-300',
+    start_time: '2025-06-12T09:30:00',
+    end_time: '2025-06-12T10:30:00',
+    created_by: { id: 101, name: 'Ahmed Ali' },
+    members: [
+      { id: 101, name: 'Ahmed Ali' },
+      { id: 102, name: 'Sara Khan' },
+    ],
+    color: 'from-blue-200 to-blue-100',
     text: 'text-blue-900',
+    icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
   },
   {
     id: 2,
     title: 'Client Call',
+    description: 'Call with client to review project milestones.',
     start: '11:00',
     end: '12:30',
-    color: 'bg-pink-100 border-pink-300',
+    start_time: '2025-06-12T11:00:00',
+    end_time: '2025-06-12T12:30:00',
+    created_by: { id: 102, name: 'Sara Khan' },
+    members: [
+      { id: 102, name: 'Sara Khan' },
+      { id: 103, name: 'John Doe' },
+    ],
+    color: 'from-pink-200 to-pink-100',
     text: 'text-pink-900',
+    icon: <CalendarDays className="w-5 h-5 text-pink-500" />,
   },
   {
     id: 3,
     title: 'Design Review',
+    description: 'Review new design proposals and give feedback.',
     start: '09:30',
     end: '10:30',
-    color: 'bg-green-100 border-green-300',
+    start_time: '2025-06-12T09:30:00',
+    end_time: '2025-06-12T10:30:00',
+    created_by: { id: 103, name: 'John Doe' },
+    members: [
+      { id: 101, name: 'Ahmed Ali' },
+      { id: 103, name: 'John Doe' },
+    ],
+    color: 'from-green-200 to-green-100',
     text: 'text-green-900',
+    icon: <CalendarDays className="w-5 h-5 text-green-500" />,
   },
   {
     id: 4,
     title: 'Planning Meeting',
+    description: 'Sprint planning and task assignment.',
     start: '11:30',
     end: '12:30',
-    color: 'bg-yellow-100 border-yellow-300',
+    start_time: '2025-06-12T11:30:00',
+    end_time: '2025-06-12T12:30:00',
+    created_by: { id: 101, name: 'Ahmed Ali' },
+    members: [
+      { id: 101, name: 'Ahmed Ali' },
+      { id: 104, name: 'Emily Smith' },
+    ],
+    color: 'from-yellow-200 to-yellow-100',
     text: 'text-yellow-900',
+    icon: <CalendarDays className="w-5 h-5 text-yellow-500" />,
   },
   {
     id: 5,
     title: 'Daily Standup',
+    description: 'Quick daily standup for all team members.',
     start: '10:00',
     end: '11:00',
-    color: 'bg-purple-100 border-purple-300',
+    start_time: '2025-06-12T10:00:00',
+    end_time: '2025-06-12T11:00:00',
+    created_by: { id: 104, name: 'Emily Smith' },
+    members: [
+      { id: 101, name: 'Ahmed Ali' },
+      { id: 104, name: 'Emily Smith' },
+    ],
+    color: 'from-purple-200 to-purple-100',
     text: 'text-purple-900',
+    icon: <CalendarDays className="w-5 h-5 text-purple-500" />,
   },
 ];
 
-// Helper to get slot index from time string
 const getSlotIndex = (time) => {
   const [h, m] = time.split(':').map(Number);
   return (h - 9) * 2 + (m === 30 ? 1 : 0);
 };
 
-// Helper to check if two meetings overlap
 const meetingsOverlap = (meeting1, meeting2) => {
   const start1 = getSlotIndex(meeting1.start);
   const end1 = getSlotIndex(meeting1.end);
   const start2 = getSlotIndex(meeting2.start);
   const end2 = getSlotIndex(meeting2.end);
-  
   return start1 < end2 && start2 < end1;
 };
 
-// Helper to group overlapping meetings
 const groupOverlappingMeetings = (allMeetings) => {
   const groups = [];
   const processed = new Set();
-
   allMeetings.forEach(meeting => {
     if (processed.has(meeting.id)) return;
-
     const group = [meeting];
     processed.add(meeting.id);
-
-    // Find all meetings that overlap with any meeting in this group
     let foundNew = true;
     while (foundNew) {
       foundNew = false;
       allMeetings.forEach(otherMeeting => {
         if (processed.has(otherMeeting.id)) return;
-        
-        const overlapsWithGroup = group.some(groupMeeting => 
-          meetingsOverlap(groupMeeting, otherMeeting)
-        );
-        
+        const overlapsWithGroup = group.some(groupMeeting => meetingsOverlap(groupMeeting, otherMeeting));
         if (overlapsWithGroup) {
           group.push(otherMeeting);
           processed.add(otherMeeting.id);
@@ -98,96 +149,263 @@ const groupOverlappingMeetings = (allMeetings) => {
         }
       });
     }
-
     groups.push(group);
   });
-
   return groups;
 };
 
-// Helper to calculate position and width for overlapping meetings (pixel-based)
 const calculateMeetingLayout = (meeting, allMeetings) => {
   const groups = groupOverlappingMeetings(allMeetings);
-  
-  // Find which group this meeting belongs to
-  const meetingGroup = groups.find(group => 
-    group.some(m => m.id === meeting.id)
-  );
-  
+  const meetingGroup = groups.find(group => group.some(m => m.id === meeting.id));
   if (!meetingGroup) {
     return { left: 0, width: MEETING_BOX_WIDTH };
   }
-  
-  // Sort group by start time to determine order
   meetingGroup.sort((a, b) => getSlotIndex(a.start) - getSlotIndex(b.start));
-  
-  // Find position in the group
   const position = meetingGroup.findIndex(m => m.id === meeting.id);
   const totalOverlapping = meetingGroup.length;
-  
   const width = MEETING_BOX_WIDTH;
   const left = position * (MEETING_BOX_WIDTH + MEETING_BOX_GAP);
-  
   return { left, width, totalOverlapping };
 };
 
 export default function ScheduleRightSection() {
+  const [meetings, setMeetings] = React.useState(initialMeetings);
+  const [selectedMeeting, setSelectedMeeting] = React.useState(null);
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [editMode, setEditMode] = React.useState(false);
+  const [editData, setEditData] = React.useState(null);
+
   const groups = groupOverlappingMeetings(meetings);
   const maxOverlapping = Math.max(...groups.map(group => group.length));
   const containerWidth = maxOverlapping > 1 ? (maxOverlapping * (MEETING_BOX_WIDTH + MEETING_BOX_GAP)) + 'px' : '100%';
 
+  // Handle opening modal and optionally edit mode
+  const openModal = (meeting) => {
+    setSelectedMeeting(meeting);
+    setEditMode(false);
+    setEditData(null);
+    setModalOpen(true);
+  };
+
+  // Handle edit button
+  const startEdit = () => {
+    setEditMode(true);
+    setEditData({ ...selectedMeeting });
+  };
+
+  // Handle cancel edit
+  const cancelEdit = () => {
+    setEditMode(false);
+    setEditData(null);
+  };
+
+  // Handle save edit
+  const saveEdit = () => {
+    setMeetings((prev) =>
+      prev.map((m) => (m.id === editData.id ? { ...editData } : m))
+    );
+    setSelectedMeeting({ ...editData });
+    setEditMode(false);
+    setEditData(null);
+  };
+
+  // Handle edit field change
+  const handleEditChange = (field, value) => {
+    setEditData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Handle members multi-select
+  const handleMembersChange = (userId) => {
+    setEditData((prev) => {
+      const exists = prev.members.some((m) => m.id === userId);
+      let newMembers;
+      if (exists) {
+        newMembers = prev.members.filter((m) => m.id !== userId);
+      } else {
+        const user = allUsers.find((u) => u.id === userId);
+        newMembers = [...prev.members, user];
+      }
+      return { ...prev, members: newMembers };
+    });
+  };
+
   return (
-    <div className="w-full h-full bg-green-50 rounded-lg p-4 border flex flex-col">
-      <h3 className="text-lg font-semibold mb-2">12 June 2025</h3>
-      <div className="flex-1 overflow-y-auto">
-        <div className="grid grid-cols-[60px_1fr] relative" style={{ minHeight: '600px' }}>
-          {/* Time slots */}
-          <div className="flex flex-col">
-            {TIME_SLOTS.map((slot, idx) => (
-              <div key={slot} className="h-12 flex items-start justify-end pr-2 text-xs text-gray-400">
-                {slot}
-              </div>
-            ))}
+    <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <div className="w-full h-full rounded-3xl border border-gray-100 bg-white/70 backdrop-blur-lg shadow-2xl p-0 flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0f4ff 0%, #f8fafc 100%)' }}>
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-6 py-4 flex items-center justify-between shadow-sm">
+          <div>
+            <h3 className="text-2xl font-bold text-gray-800">12 June 2025</h3>
+            <div className="text-sm text-gray-500 font-medium">Thursday</div>
           </div>
-          {/* Meeting grid */}
-          <div className="relative overflow-x-auto">
-            <div style={{ width: containerWidth, minWidth: '100%' }}>
-              {/* Time slot lines */}
+          <Button variant="default" size="sm" className="rounded-full flex items-center gap-2 shadow-md">
+            <Plus className="w-4 h-4" /> Add Meeting
+          </Button>
+        </div>
+        {/* Time grid */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="grid grid-cols-[60px_1fr] relative" style={{ minHeight: '600px' }}>
+            {/* Time slots */}
+            <div className="flex flex-col">
               {TIME_SLOTS.map((slot, idx) => (
-                <div key={slot} className="h-12 border-t border-gray-200 w-full absolute left-0" style={{ top: `${idx * 48}px`, zIndex: 0 }} />
+                <div key={slot} className="h-12 flex items-start justify-end pr-2 text-xs text-gray-400">
+                  {slot}
+                </div>
               ))}
-              {/* Meeting boxes */}
-              {meetings.map((meeting) => {
-                const top = getSlotIndex(meeting.start) * 48;
-                const height = (getSlotIndex(meeting.end) - getSlotIndex(meeting.start)) * 48;
-                const { left, width, totalOverlapping } = calculateMeetingLayout(meeting, meetings);
-                
-                return (
-                  <div
-                    key={meeting.id}
-                    className={`absolute rounded-2xl border p-3 shadow-sm ${meeting.color} ${meeting.text} transition-all duration-200`}
-                    style={{ 
-                      top, 
-                      height: height - 8, // add a little gap between meetings
-                      left: left + 'px',
-                      width: width + 'px',
-                      zIndex: 1,
-                      boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <div className="font-semibold truncate mb-1 text-base leading-tight">{meeting.title}</div>
-                    <div className="text-xs opacity-70 font-medium">{meeting.start} - {meeting.end}</div>
-                  </div>
-                );
-              })}
+            </div>
+            {/* Meeting grid */}
+            <div className="relative overflow-x-auto">
+              <div style={{ width: containerWidth, minWidth: '100%' }}>
+                {/* Time slot lines */}
+                {TIME_SLOTS.map((slot, idx) => (
+                  <div key={slot} className="h-12 border-t border-gray-200 w-full absolute left-0" style={{ top: `${idx * 48}px`, zIndex: 0 }} />
+                ))}
+                {/* Meeting boxes */}
+                {meetings.map((meeting) => {
+                  const top = getSlotIndex(meeting.start) * 48;
+                  const height = (getSlotIndex(meeting.end) - getSlotIndex(meeting.start)) * 48;
+                  const { left, width, totalOverlapping } = calculateMeetingLayout(meeting, meetings);
+                  return (
+                    <div
+                      key={meeting.id}
+                      className={`absolute rounded-2xl border border-gray-200 p-4 shadow-lg bg-gradient-to-br ${meeting.color} ${meeting.text} transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl flex items-center gap-3 cursor-pointer`}
+                      style={{ 
+                        top, 
+                        height: height - 10, // add a little gap between meetings
+                        left: left + 'px',
+                        width: width + 'px',
+                        zIndex: 1,
+                        boxShadow: '0 4px 16px 0 rgba(0,0,0,0.06)',
+                      }}
+                      onClick={() => openModal(meeting)}
+                    >
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/70 shadow-inner mr-2">
+                        {meeting.icon}
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="font-bold truncate mb-1 text-base leading-tight">{meeting.title}</div>
+                        <div className="text-xs opacity-80 font-medium">{meeting.start} - {meeting.end}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 80% 20%, #c7d2fe22 0%, transparent 70%)' }} />
       </div>
-    </div>
+      {/* Meeting Details Modal */}
+      <DialogContent>
+        {selectedMeeting && !editMode && (
+          <div>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedMeeting.title}
+              <Button size="icon" variant="ghost" className="ml-2" onClick={startEdit} aria-label="Edit meeting">
+                <Pencil className="w-4 h-4" />
+              </Button>
+            </DialogTitle>
+            <DialogDescription>
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-700">
+                  {new Date(selectedMeeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {' - '}
+                  {new Date(selectedMeeting.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <User className="w-4 h-4 text-green-500" />
+                <span className="text-gray-700">Created by: <span className="font-semibold">{selectedMeeting.created_by.name}</span></span>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-4 h-4 text-purple-500" />
+                <span className="text-gray-700">Members: {selectedMeeting.members.map(m => m.name).join(', ')}</span>
+              </div>
+              <div className="flex items-start gap-2 mb-2">
+                <FileText className="w-4 h-4 text-gray-400 mt-1" />
+                <span className="text-gray-700 whitespace-pre-line">{selectedMeeting.description}</span>
+              </div>
+            </DialogDescription>
+            <DialogClose>
+              <Button variant="outline" className="mt-2 w-full">Close</Button>
+            </DialogClose>
+          </div>
+        )}
+        {selectedMeeting && editMode && (
+          <div>
+            <DialogTitle className="flex items-center gap-2">
+              <input
+                className="text-2xl font-bold mb-2 text-gray-800 bg-gray-100 rounded px-2 py-1 w-full"
+                value={editData.title}
+                onChange={e => handleEditChange('title', e.target.value)}
+              />
+            </DialogTitle>
+            <DialogDescription>
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-4 h-4 text-blue-500" />
+                <input
+                  type="datetime-local"
+                  className="border rounded px-2 py-1 text-gray-700"
+                  value={editData.start_time.slice(0,16)}
+                  onChange={e => handleEditChange('start_time', e.target.value)}
+                />
+                <span>-</span>
+                <input
+                  type="datetime-local"
+                  className="border rounded px-2 py-1 text-gray-700"
+                  value={editData.end_time.slice(0,16)}
+                  onChange={e => handleEditChange('end_time', e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <User className="w-4 h-4 text-green-500" />
+                <select
+                  className="border rounded px-2 py-1 text-gray-700"
+                  value={editData.created_by.id}
+                  onChange={e => handleEditChange('created_by', allUsers.find(u => u.id === Number(e.target.value)))}
+                >
+                  {allUsers.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-4 h-4 text-purple-500" />
+                <div className="flex flex-wrap gap-2">
+                  {allUsers.map(u => (
+                    <label key={u.id} className="flex items-center gap-1 text-xs bg-gray-100 rounded px-2 py-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!editData.members.find(m => m.id === u.id)}
+                        onChange={() => handleMembersChange(u.id)}
+                      />
+                      {u.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-start gap-2 mb-2">
+                <FileText className="w-4 h-4 text-gray-400 mt-1" />
+                <textarea
+                  className="border rounded px-2 py-1 text-gray-700 w-full min-h-[60px]"
+                  value={editData.description}
+                  onChange={e => handleEditChange('description', e.target.value)}
+                />
+              </div>
+            </DialogDescription>
+            <div className="flex gap-2 mt-4">
+              <Button variant="default" className="flex-1 flex items-center gap-2" onClick={saveEdit}>
+                <Check className="w-4 h-4" /> Save
+              </Button>
+              <Button variant="outline" className="flex-1 flex items-center gap-2" onClick={cancelEdit}>
+                <X className="w-4 h-4" /> Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
