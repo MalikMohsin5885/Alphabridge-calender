@@ -7,7 +7,7 @@ export default function ScheduleLeftTopBox() {
   const [date, setDate] = React.useState(new Date(2025, 5, 12));
 
   return (
-    <div className="w-full h-full bg-gray-100 rounded-lg p-4 border flex">
+    <div className="w-full h-full bg-gray-100 rounded-lg border flex">
       <Calendar
         mode="single"
         defaultMonth={date}
