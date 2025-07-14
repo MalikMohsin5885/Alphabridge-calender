@@ -6,6 +6,16 @@ import { FaCalendarAlt } from "react-icons/fa";
 import { IoNotifications } from "react-icons/io5";
 import { usePathname } from "next/navigation";
 import { useUser } from "../context/UserContext";
+import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle
+} from "./ui/sheet";
+import { useRouter } from "next/navigation";
+import { logout } from "../services/loginService";
 
 export default function Header() {
   const pathname = usePathname();
@@ -13,6 +23,7 @@ export default function Header() {
   const isSchedule = pathname === "/dashboard/schedule";
   const [scrolled, setScrolled] = React.useState(false);
   const { user } = useUser();
+  const router = useRouter();
 
   React.useEffect(() => {
     const onScroll = () => {
@@ -21,6 +32,12 @@ export default function Header() {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    localStorage.removeItem("user_info");
+    router.push("/login");
+  };
 
   // Loading state: don't render user info until loaded
   if (user === null) {
@@ -77,20 +94,58 @@ export default function Header() {
           <IoNotifications className="w-4 h-4 text-blue-600" />
           <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-pink-500 rounded-full border-2 border-white animate-pulse" />
         </button>
-        {/* Profile Icon and User Info */}
-        <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-200 text-gray-500 font-bold text-base">
-            {user?.email ? user.email[0].toUpperCase() : "?"}
-          </span>
-          <div className="flex flex-col leading-tight">
-            <span className="text-blue-900 font-semibold text-xs truncate max-w-[80px]">
-              {user?.name || user?.username || user?.email || "User"}
-            </span>
-            <span className="text-blue-500 text-[10px] truncate max-w-[80px]">
-              {user?.email || "No email"}
-            </span>
-          </div>
-        </div>
+        {/* Profile Icon and User Info with Sheet */}
+        <Sheet>
+          <SheetTrigger asChild>
+            <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 cursor-pointer">
+              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-200 text-gray-500 font-bold text-base">
+                {user?.email ? user.email[0].toUpperCase() : "?"}
+              </span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-blue-900 font-semibold text-xs truncate max-w-[80px]">
+                  {user?.name || user?.username || user?.email || "User"}
+                </span>
+                <span className="text-blue-500 text-[10px] truncate max-w-[80px]">
+                  {user?.email || "No email"}
+                </span>
+              </div>
+            </div>
+          </SheetTrigger>
+          <SheetContent side="right">
+            <SheetTitle className="sr-only">User Account</SheetTitle>
+            <div className="flex flex-col h-full justify-between">
+              <div className="flex flex-col items-center mt-8 mb-8">
+                {/* Avatar/Initial */}
+                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-3xl font-bold text-gray-500 mb-4">
+                  {user?.email ? user.email[0].toUpperCase() : "?"}
+                </div>
+                {/* User Info Card */}
+                <div className="w-full bg-white rounded-xl shadow p-4 flex flex-col gap-2 border">
+                  <div>
+                    <span className="text-xs text-gray-500">Name</span>
+                    <div className="font-semibold text-lg text-gray-800">{user?.name || user?.username || user?.email || "User"}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500">Email</span>
+                    <div className="text-gray-700 text-base">{user?.email || "No email"}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500">Role</span>
+                    <div className="text-blue-700 text-base font-medium capitalize">{user?.role || "No role"}</div>
+                  </div>
+                </div>
+              </div>
+              <SheetFooter>
+                <button
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-all"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
+              </SheetFooter>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </header>
   );
