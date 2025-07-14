@@ -80,8 +80,8 @@ const initialMeetings = [
     id: 3,
     title: 'Design Review',
     description: 'Review new design proposals and give feedback.',
-    start: '09:30',
-    end: '10:30',
+    start: '00:30',
+    end: '01:30',
     start_time: '2025-06-12T09:30:00',
     end_time: '2025-06-12T10:30:00',
     created_by: { id: 103, name: 'John Doe' },
@@ -193,6 +193,7 @@ export default function ScheduleRightSection() {
   const [modalOpen, setModalOpen] = React.useState(false);
   const [editMode, setEditMode] = React.useState(false);
   const [editData, setEditData] = React.useState(null);
+  const [hoveredMeetingId, setHoveredMeetingId] = React.useState(null);
 
   const groups = groupOverlappingMeetings(meetings);
   const maxOverlapping = Math.max(...groups.map(group => group.length));
@@ -297,7 +298,17 @@ export default function ScheduleRightSection() {
                         boxShadow: '0 4px 16px 0 rgba(0,0,0,0.06)',
                       }}
                       onClick={() => openModal(meeting)}
+                      onMouseEnter={() => setHoveredMeetingId(meeting.id)}
+                      onMouseLeave={() => setHoveredMeetingId(null)}
                     >
+                      {/* Tooltip on hover */}
+                      {hoveredMeetingId === meeting.id && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-white/90 border border-blue-100 shadow-lg rounded-xl px-4 py-2 min-w-[180px] z-50 animate-fade-in pointer-events-none">
+                          <div className="font-semibold text-blue-900 text-sm mb-1 truncate">{meeting.title}</div>
+                          <div className="text-xs text-blue-600 mb-1">{meeting.start} - {meeting.end}</div>
+                          <div className="text-xs text-gray-500 truncate">{meeting.members?.map(m => m.name).join(', ')}</div>
+                        </div>
+                      )}
                       <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/70 shadow-inner mr-2">
                         {meeting.icon}
                       </div>

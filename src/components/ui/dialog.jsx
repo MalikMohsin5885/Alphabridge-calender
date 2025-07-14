@@ -47,13 +47,17 @@ export function DialogContent({ children, className = '' }) {
       />
       {/* Modal content */}
       <div
-        className={`relative z-10 bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-6 animate-fade-in-up ${className}`}
+        className={`relative z-10 bg-white/80 backdrop-blur-2xl border border-blue-100 shadow-2xl max-w-2xl w-full mx-4 p-8 rounded-3xl animate-fade-in-up ${className}`}
         role="dialog"
         aria-modal="true"
+        style={{
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 60%, rgba(219,234,254,0.85) 100%)',
+          boxShadow: '0 8px 40px 0 rgba(30,64,175,0.10)',
+        }}
       >
         {children}
         <button
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl font-bold focus:outline-none"
+          className="absolute top-5 right-5 text-gray-400 hover:text-blue-700 text-2xl font-bold focus:outline-none"
           onClick={() => setOpen(false)}
           aria-label="Close"
         >
@@ -65,11 +69,11 @@ export function DialogContent({ children, className = '' }) {
 }
 
 export function DialogTitle({ children }) {
-  return <h2 className="text-2xl font-bold mb-2 text-gray-800">{children}</h2>;
+  return <h2 className="text-2xl font-bold mb-2 text-blue-900 tracking-tight">{children}</h2>;
 }
 
 export function DialogDescription({ children }) {
-  return <div className="text-gray-600 mb-4 text-base">{children}</div>;
+  return <div className="text-gray-700 mb-4 text-base leading-relaxed">{children}</div>;
 }
 
 export function DialogClose({ children }) {
