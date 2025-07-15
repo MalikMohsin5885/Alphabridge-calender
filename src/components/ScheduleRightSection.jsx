@@ -195,6 +195,15 @@ export default function ScheduleRightSection() {
   const [editData, setEditData] = React.useState(null);
   const [hoveredMeetingId, setHoveredMeetingId] = React.useState(null);
   const [mounted, setMounted] = React.useState(false);
+  const [addModalOpen, setAddModalOpen] = React.useState(false);
+  const [addForm, setAddForm] = React.useState({
+    title: '',
+    description: '',
+    start_time: '',
+    end_time: '',
+    created_by: allUsers[0],
+    members: [],
+  });
   React.useEffect(() => setMounted(true), []);
 
   const groups = groupOverlappingMeetings(meetings);
@@ -251,6 +260,51 @@ export default function ScheduleRightSection() {
     });
   };
 
+  // Add Meeting form handlers
+  const handleAddFormChange = (field, value) => {
+    setAddForm((prev) => ({ ...prev, [field]: value }));
+  };
+  const handleAddMembersChange = (userId) => {
+    setAddForm((prev) => {
+      const exists = prev.members.some((m) => m.id === userId);
+      let newMembers;
+      if (exists) {
+        newMembers = prev.members.filter((m) => m.id !== userId);
+      } else {
+        const user = allUsers.find((u) => u.id === userId);
+        newMembers = [...prev.members, user];
+      }
+      return { ...prev, members: newMembers };
+    });
+  };
+  const handleAddMeeting = (e) => {
+    e.preventDefault();
+    const newMeeting = {
+      id: Date.now(),
+      title: addForm.title,
+      description: addForm.description,
+      start: addForm.start_time.slice(11, 16),
+      end: addForm.end_time.slice(11, 16),
+      start_time: addForm.start_time,
+      end_time: addForm.end_time,
+      created_by: addForm.created_by,
+      members: addForm.members,
+      color: 'from-blue-100 to-blue-50',
+      text: 'text-blue-900',
+      icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
+    };
+    setMeetings((prev) => [...prev, newMeeting]);
+    setAddModalOpen(false);
+    setAddForm({
+      title: '',
+      description: '',
+      start_time: '',
+      end_time: '',
+      created_by: allUsers[0],
+      members: [],
+    });
+  };
+
   return (
     <Dialog open={modalOpen} onOpenChange={setModalOpen}>
       <div className="w-full h-full rounded-3xl border border-gray-100 bg-white/70 backdrop-blur-lg shadow-2xl p-0 flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0f4ff 0%, #f8fafc 100%)' }}>
@@ -260,7 +314,7 @@ export default function ScheduleRightSection() {
             <h3 className="text-2xl font-bold text-gray-800">12 June 2025</h3>
             <div className="text-sm text-gray-500 font-medium">Thursday</div>
           </div>
-          <Button variant="default" size="sm" className="rounded-full flex items-center gap-2 shadow-md">
+          <Button variant="default" size="sm" className="rounded-full flex items-center gap-2 shadow-md" onClick={() => setAddModalOpen(true)}>
             <Plus className="w-4 h-4" /> Add Meeting
           </Button>
         </div>
@@ -438,6 +492,95 @@ export default function ScheduleRightSection() {
           </div>
         )}
       </DialogContent>
+      {/* Add Meeting Modal */}
+      <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
+        <DialogContent>
+          <DialogTitle>Add New Meeting</DialogTitle>
+          <form onSubmit={handleAddMeeting} className="flex flex-col gap-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <input
+                className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                value={addForm.title}
+                onChange={e => handleAddFormChange('title', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px]"
+                value={addForm.description}
+                onChange={e => handleAddFormChange('description', e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                <input
+                  type="datetime-local"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                  value={addForm.start_time}
+                  onChange={e => handleAddFormChange('start_time', e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                <input
+                  type="datetime-local"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                  value={addForm.end_time}
+                  onChange={e => handleAddFormChange('end_time', e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Members</label>
+              {/* Selected members as chips */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {addForm.members.map((m) => (
+                  <span key={m.id} className="flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-xs font-medium shadow-sm">
+                    {m.name}
+                    <button
+                      type="button"
+                      className="ml-1 text-blue-500 hover:text-blue-700 focus:outline-none"
+                      onClick={() => handleAddFormChange('members', addForm.members.filter(mem => mem.id !== m.id))}
+                      aria-label={`Remove ${m.name}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              {/* Select for unselected members */}
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                value=""
+                onChange={e => {
+                  const userId = Number(e.target.value);
+                  if (!userId) return;
+                  const user = allUsers.find(u => u.id === userId);
+                  if (user && !addForm.members.some(m => m.id === user.id)) {
+                    handleAddFormChange('members', [...addForm.members, user]);
+                  }
+                }}
+              >
+                <option value="">Select member...</option>
+                {allUsers.filter(u => !addForm.members.some(m => m.id === u.id)).map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <Button type="submit" variant="default" className="flex-1">Add Meeting</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setAddModalOpen(false)}>Cancel</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
