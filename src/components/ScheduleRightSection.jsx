@@ -187,8 +187,8 @@ const calculateMeetingLayout = (meeting, allMeetings) => {
   return { left, width, totalOverlapping };
 };
 
-export default function ScheduleRightSection() {
-  const [meetings, setMeetings] = React.useState(initialMeetings);
+export default function ScheduleRightSection({ selectedDate }) {
+  const [meetings, setMeetings] = React.useState([]);
   const [selectedMeeting, setSelectedMeeting] = React.useState(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [editMode, setEditMode] = React.useState(false);
@@ -204,7 +204,66 @@ export default function ScheduleRightSection() {
     created_by: allUsers[0],
     members: [],
   });
+
   React.useEffect(() => setMounted(true), []);
+
+  // Fetch meetings for the selected date
+  React.useEffect(() => {
+    console.log('Selected date changed:', selectedDate); // Debug log
+    if (!selectedDate) return;
+    // Format date as YYYY-MM-DD
+    const yyyy = selectedDate.getFullYear();
+    const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(selectedDate.getDate()).padStart(2, '0');
+    const formattedDate = `${yyyy}-${mm}-${dd}`;
+    const token = localStorage.getItem('access_token');
+    console.log('About to fetch:', `http://127.0.0.1:8000/api/meetings/?date=${formattedDate}`, 'with token:', token); // Debug log
+
+    fetch(`http://127.0.0.1:8000/api/meetings/?date=${formattedDate}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(res => res.json())
+      .then(data => {
+        // Filter meetings to only include those matching the selected date
+        const mappedMeetings = data
+          .filter(meeting => {
+            const meetingDate = new Date(meeting.start_time);
+            return (
+              meetingDate.getFullYear() === selectedDate.getFullYear() &&
+              meetingDate.getMonth() === selectedDate.getMonth() &&
+              meetingDate.getDate() === selectedDate.getDate()
+            );
+          })
+          .map(meeting => {
+            // Parse start and end time to HH:mm
+            const startDate = new Date(meeting.start_time);
+            const endDate = new Date(meeting.end_time);
+            const pad = n => n.toString().padStart(2, '0');
+            const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+            const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+
+            // Use ID as fallback for created_by
+            return {
+              ...meeting,
+              start,
+              end,
+              created_by: typeof meeting.created_by === 'object' ? meeting.created_by : { id: meeting.created_by, name: `User ${meeting.created_by}` },
+              color: 'from-blue-200 to-blue-100',
+              text: 'text-blue-900',
+              icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
+            };
+          });
+        console.log('Mapped meetings:', mappedMeetings); // Debug log
+        setMeetings(mappedMeetings);
+      })
+      .catch(err => {
+        console.error('Fetch error:', err); // Debug log
+        setMeetings([]);
+      });
+  }, [selectedDate]);
 
   const groups = groupOverlappingMeetings(meetings);
   const maxOverlapping = Math.max(...groups.map(group => group.length));
@@ -305,282 +364,293 @@ export default function ScheduleRightSection() {
     });
   };
 
+  // Display the selected date at the top
   return (
-    <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-      <div className="w-full h-full rounded-3xl border border-gray-100 bg-white/70 backdrop-blur-lg shadow-2xl p-0 flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0f4ff 0%, #f8fafc 100%)' }}>
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-6 py-4 flex items-center justify-between shadow-sm">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-800">12 June 2025</h3>
-            <div className="text-sm text-gray-500 font-medium">Thursday</div>
-          </div>
-          <Button variant="default" size="sm" className="rounded-full flex items-center gap-2 shadow-md" onClick={() => setAddModalOpen(true)}>
-            <Plus className="w-4 h-4" /> Add Meeting
-          </Button>
-        </div>
-        {/* Time grid */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="grid grid-cols-[60px_1fr] relative" style={{ minHeight: '600px' }}>
-            {/* Time slots */}
-            <div className="flex flex-col">
-              {TIME_SLOTS.map((slot, idx) => (
-                <div key={slot} className="h-12 flex items-start justify-end pr-2 text-xs text-gray-400">
-                  {slot}
-                </div>
-              ))}
+    <div className="flex flex-col h-full w-full">
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <div className="w-full h-full rounded-3xl border border-gray-100 bg-white/70 backdrop-blur-lg shadow-2xl p-0 flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0f4ff 0%, #f8fafc 100%)' }}>
+          {/* Sticky Header */}
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-6 py-4 flex items-center justify-between shadow-sm">
+            <div>
+              {selectedDate && (
+                <>
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {selectedDate.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}
+                  </h3>
+                  <div className="text-sm text-gray-500 font-medium">
+                    {selectedDate.toLocaleDateString("en-US", { weekday: "long" })}
+                  </div>
+                </>
+              )}
             </div>
-            {/* Meeting grid */}
-            <div className="relative overflow-x-auto">
-              <div style={{ width: containerWidth, minWidth: '100%' }}>
-                {/* Time slot lines */}
+            <Button variant="default" size="sm" className="rounded-full flex items-center gap-2 shadow-md" onClick={() => setAddModalOpen(true)}>
+              <Plus className="w-4 h-4" /> Add Meeting
+            </Button>
+          </div>
+          {/* Time grid */}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="grid grid-cols-[60px_1fr] relative" style={{ minHeight: '600px' }}>
+              {/* Time slots */}
+              <div className="flex flex-col">
                 {TIME_SLOTS.map((slot, idx) => (
-                  <div key={slot} className="h-12 border-t border-gray-200 w-full absolute left-0" style={{ top: `${idx * 48}px`, zIndex: 0 }} />
+                  <div key={slot} className="h-12 flex items-start justify-end pr-2 text-xs text-gray-400">
+                    {slot}
+                  </div>
                 ))}
-                {/* Meeting boxes */}
-                {meetings.map((meeting) => {
-                  const top = getSlotIndex(meeting.start) * 48;
-                  const height = (getSlotIndex(meeting.end) - getSlotIndex(meeting.start)) * 48;
-                  const { left, width, totalOverlapping } = calculateMeetingLayout(meeting, meetings);
-                  return (
-                    <div
-                      key={meeting.id}
-                      className={`absolute rounded-2xl border border-gray-200 p-4 shadow-lg bg-gradient-to-br ${meeting.color} ${meeting.text} transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl flex items-center gap-3 cursor-pointer`}
-                      style={{ 
-                        top, 
-                        height: height - 10, // add a little gap between meetings
-                        left: left + 'px',
-                        width: width + 'px',
-                        zIndex: 1,
-                        boxShadow: '0 4px 16px 0 rgba(0,0,0,0.06)',
-                      }}
-                      onClick={() => openModal(meeting)}
-                      onMouseEnter={() => setHoveredMeetingId(meeting.id)}
-                      onMouseLeave={() => setHoveredMeetingId(null)}
-                    >
-                      {/* Tooltip on hover */}
-                      {hoveredMeetingId === meeting.id && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-white/90 border border-blue-100 shadow-lg rounded-xl px-4 py-2 min-w-[180px] z-50 animate-fade-in pointer-events-none">
-                          <div className="font-semibold text-blue-900 text-sm mb-1 truncate">{meeting.title}</div>
-                          <div className="text-xs text-blue-600 mb-1">{meeting.start} - {meeting.end}</div>
-                          <div className="text-xs text-gray-500 truncate">{meeting.members?.map(m => m.name).join(', ')}</div>
+              </div>
+              {/* Meeting grid */}
+              <div className="relative overflow-x-auto">
+                <div style={{ width: containerWidth, minWidth: '100%' }}>
+                  {/* Time slot lines */}
+                  {TIME_SLOTS.map((slot, idx) => (
+                    <div key={slot} className="h-12 border-t border-gray-200 w-full absolute left-0" style={{ top: `${idx * 48}px`, zIndex: 0 }} />
+                  ))}
+                  {/* Meeting boxes */}
+                  {meetings.map((meeting) => {
+                    const top = getSlotIndex(meeting.start) * 48;
+                    const height = (getSlotIndex(meeting.end) - getSlotIndex(meeting.start)) * 48;
+                    const { left, width, totalOverlapping } = calculateMeetingLayout(meeting, meetings);
+                    return (
+                      <div
+                        key={meeting.id}
+                        className={`absolute rounded-2xl border border-gray-200 p-4 shadow-lg bg-gradient-to-br ${meeting.color} ${meeting.text} transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl flex items-center gap-3 cursor-pointer`}
+                        style={{ 
+                          top, 
+                          height: height - 10, // add a little gap between meetings
+                          left: left + 'px',
+                          width: width + 'px',
+                          zIndex: 1,
+                          boxShadow: '0 4px 16px 0 rgba(0,0,0,0.06)',
+                        }}
+                        onClick={() => openModal(meeting)}
+                        onMouseEnter={() => setHoveredMeetingId(meeting.id)}
+                        onMouseLeave={() => setHoveredMeetingId(null)}
+                      >
+                        {/* Tooltip on hover */}
+                        {hoveredMeetingId === meeting.id && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-white/90 border border-blue-100 shadow-lg rounded-xl px-4 py-2 min-w-[180px] z-50 animate-fade-in pointer-events-none">
+                            <div className="font-semibold text-blue-900 text-sm mb-1 truncate">{meeting.title}</div>
+                            <div className="text-xs text-blue-600 mb-1">{meeting.start} - {meeting.end}</div>
+                            <div className="text-xs text-gray-500 truncate">{meeting.members?.map(m => m.name).join(', ')}</div>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/70 shadow-inner mr-2">
+                          {meeting.icon}
                         </div>
-                      )}
-                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/70 shadow-inner mr-2">
-                        {meeting.icon}
+                        <div className="flex flex-col">
+                          <div className="font-bold truncate mb-1 text-base leading-tight">{meeting.title}</div>
+                          <div className="text-xs opacity-80 font-medium">{meeting.start} - {meeting.end}</div>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <div className="font-bold truncate mb-1 text-base leading-tight">{meeting.title}</div>
-                        <div className="text-xs opacity-80 font-medium">{meeting.start} - {meeting.end}</div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
+          {/* Subtle background pattern */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 80% 20%, #c7d2fe22 0%, transparent 70%)' }} />
         </div>
-        {/* Subtle background pattern */}
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 80% 20%, #c7d2fe22 0%, transparent 70%)' }} />
-      </div>
-      {/* Meeting Details Modal */}
-      <DialogContent>
-        {selectedMeeting && !editMode && (
-          <div>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedMeeting.title}
-              <Button size="icon" variant="ghost" className="ml-2" onClick={startEdit} aria-label="Edit meeting">
-                <Pencil className="w-4 h-4" />
-              </Button>
-            </DialogTitle>
-            <DialogDescription>
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4 text-blue-500" />
-                <span className="font-medium text-gray-700">
-                  {mounted ? new Date(selectedMeeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                  {' - '}
-                  {mounted ? new Date(selectedMeeting.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <User className="w-4 h-4 text-green-500" />
-                <span className="text-gray-700">Created by: <span className="font-semibold">{selectedMeeting.created_by.name}</span></span>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-purple-500" />
-                <span className="text-gray-700">Members: {selectedMeeting.members.map(m => m.name).join(', ')}</span>
-              </div>
-              <div className="flex items-start gap-2 mb-2">
-                <FileText className="w-4 h-4 text-gray-400 mt-1" />
-                <span className="text-gray-700 whitespace-pre-line">{selectedMeeting.description}</span>
-              </div>
-            </DialogDescription>
-            <DialogClose>
-              <Button variant="outline" className="mt-2 w-full">Close</Button>
-            </DialogClose>
-          </div>
-        )}
-        {selectedMeeting && editMode && (
-          <div>
-            <DialogTitle className="flex items-center gap-2">
-              <input
-                className="text-2xl font-bold mb-2 text-gray-800 bg-gray-100 rounded px-2 py-1 w-full"
-                value={editData.title}
-                onChange={e => handleEditChange('title', e.target.value)}
-              />
-            </DialogTitle>
-            <DialogDescription>
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4 text-blue-500" />
+        {/* Meeting Details Modal */}
+        <DialogContent>
+          {selectedMeeting && !editMode && (
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                {selectedMeeting.title}
+                <Button size="icon" variant="ghost" className="ml-2" onClick={startEdit} aria-label="Edit meeting">
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </DialogTitle>
+              <DialogDescription>
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium text-gray-700">
+                    {mounted ? new Date(selectedMeeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    {' - '}
+                    {mounted ? new Date(selectedMeeting.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="w-4 h-4 text-green-500" />
+                  <span className="text-gray-700">Created by: <span className="font-semibold">{selectedMeeting.created_by.name}</span></span>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-4 h-4 text-purple-500" />
+                  <span className="text-gray-700">Members: {selectedMeeting.members.map(m => m.name).join(', ')}</span>
+                </div>
+                <div className="flex items-start gap-2 mb-2">
+                  <FileText className="w-4 h-4 text-gray-400 mt-1" />
+                  <span className="text-gray-700 whitespace-pre-line">{selectedMeeting.description}</span>
+                </div>
+              </DialogDescription>
+              <DialogClose>
+                <Button variant="outline" className="mt-2 w-full">Close</Button>
+              </DialogClose>
+            </div>
+          )}
+          {selectedMeeting && editMode && (
+            <div>
+              <DialogTitle className="flex items-center gap-2">
                 <input
-                  type="datetime-local"
-                  className="border rounded px-2 py-1 text-gray-700"
-                  value={editData.start_time.slice(0,16)}
-                  onChange={e => handleEditChange('start_time', e.target.value)}
+                  className="text-2xl font-bold mb-2 text-gray-800 bg-gray-100 rounded px-2 py-1 w-full"
+                  value={editData.title}
+                  onChange={e => handleEditChange('title', e.target.value)}
                 />
-                <span>-</span>
+              </DialogTitle>
+              <DialogDescription>
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-blue-500" />
+                  <input
+                    type="datetime-local"
+                    className="border rounded px-2 py-1 text-gray-700"
+                    value={editData.start_time.slice(0,16)}
+                    onChange={e => handleEditChange('start_time', e.target.value)}
+                  />
+                  <span>-</span>
+                  <input
+                    type="datetime-local"
+                    className="border rounded px-2 py-1 text-gray-700"
+                    value={editData.end_time.slice(0,16)}
+                    onChange={e => handleEditChange('end_time', e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="w-4 h-4 text-green-500" />
+                  <select
+                    className="border rounded px-2 py-1 text-gray-700"
+                    value={editData.created_by.id}
+                    onChange={e => handleEditChange('created_by', allUsers.find(u => u.id === Number(e.target.value)))}
+                  >
+                    {allUsers.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-4 h-4 text-purple-500" />
+                  <div className="flex flex-wrap gap-2">
+                    {allUsers.map(u => (
+                      <label key={u.id} className="flex items-center gap-1 text-xs bg-gray-100 rounded px-2 py-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!editData.members.find(m => m.id === u.id)}
+                          onChange={() => handleMembersChange(u.id)}
+                        />
+                        {u.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 mb-2">
+                  <FileText className="w-4 h-4 text-gray-400 mt-1" />
+                  <textarea
+                    className="border rounded px-2 py-1 text-gray-700 w-full min-h-[60px]"
+                    value={editData.description}
+                    onChange={e => handleEditChange('description', e.target.value)}
+                  />
+                </div>
+              </DialogDescription>
+              <div className="flex gap-2 mt-4">
+                <Button variant="default" className="flex-1 flex items-center gap-2" onClick={saveEdit}>
+                  <Check className="w-4 h-4" /> Save
+                </Button>
+                <Button variant="outline" className="flex-1 flex items-center gap-2" onClick={cancelEdit}>
+                  <X className="w-4 h-4" /> Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+        {/* Add Meeting Modal */}
+        <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
+          <DialogContent>
+            <DialogTitle>Add New Meeting</DialogTitle>
+            <form onSubmit={handleAddMeeting} className="flex flex-col gap-4 mt-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                 <input
-                  type="datetime-local"
-                  className="border rounded px-2 py-1 text-gray-700"
-                  value={editData.end_time.slice(0,16)}
-                  onChange={e => handleEditChange('end_time', e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                  value={addForm.title}
+                  onChange={e => handleAddFormChange('title', e.target.value)}
+                  required
                 />
               </div>
-              <div className="flex items-center gap-2 mb-2">
-                <User className="w-4 h-4 text-green-500" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px]"
+                  value={addForm.description}
+                  onChange={e => handleAddFormChange('description', e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                    value={addForm.start_time}
+                    onChange={e => handleAddFormChange('start_time', e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                    value={addForm.end_time}
+                    onChange={e => handleAddFormChange('end_time', e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Members</label>
+                {/* Selected members as chips */}
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {addForm.members.map((m) => (
+                    <span key={m.id} className="flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-xs font-medium shadow-sm">
+                      {m.name}
+                      <button
+                        type="button"
+                        className="ml-1 text-blue-500 hover:text-blue-700 focus:outline-none"
+                        onClick={() => handleAddFormChange('members', addForm.members.filter(mem => mem.id !== m.id))}
+                        aria-label={`Remove ${m.name}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                {/* Select for unselected members */}
                 <select
-                  className="border rounded px-2 py-1 text-gray-700"
-                  value={editData.created_by.id}
-                  onChange={e => handleEditChange('created_by', allUsers.find(u => u.id === Number(e.target.value)))}
+                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                  value=""
+                  onChange={e => {
+                    const userId = Number(e.target.value);
+                    if (!userId) return;
+                    const user = allUsers.find(u => u.id === userId);
+                    if (user && !addForm.members.some(m => m.id === user.id)) {
+                      handleAddFormChange('members', [...addForm.members, user]);
+                    }
+                  }}
                 >
-                  {allUsers.map(u => (
+                  <option value="">Select member...</option>
+                  {allUsers.filter(u => !addForm.members.some(m => m.id === u.id)).map(u => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </select>
               </div>
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-purple-500" />
-                <div className="flex flex-wrap gap-2">
-                  {allUsers.map(u => (
-                    <label key={u.id} className="flex items-center gap-1 text-xs bg-gray-100 rounded px-2 py-1 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={!!editData.members.find(m => m.id === u.id)}
-                        onChange={() => handleMembersChange(u.id)}
-                      />
-                      {u.name}
-                    </label>
-                  ))}
-                </div>
+              <div className="flex gap-2 mt-2">
+                <Button type="submit" variant="default" className="flex-1">Add Meeting</Button>
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setAddModalOpen(false)}>Cancel</Button>
               </div>
-              <div className="flex items-start gap-2 mb-2">
-                <FileText className="w-4 h-4 text-gray-400 mt-1" />
-                <textarea
-                  className="border rounded px-2 py-1 text-gray-700 w-full min-h-[60px]"
-                  value={editData.description}
-                  onChange={e => handleEditChange('description', e.target.value)}
-                />
-              </div>
-            </DialogDescription>
-            <div className="flex gap-2 mt-4">
-              <Button variant="default" className="flex-1 flex items-center gap-2" onClick={saveEdit}>
-                <Check className="w-4 h-4" /> Save
-              </Button>
-              <Button variant="outline" className="flex-1 flex items-center gap-2" onClick={cancelEdit}>
-                <X className="w-4 h-4" /> Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-      {/* Add Meeting Modal */}
-      <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <DialogContent>
-          <DialogTitle>Add New Meeting</DialogTitle>
-          <form onSubmit={handleAddMeeting} className="flex flex-col gap-4 mt-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input
-                className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
-                value={addForm.title}
-                onChange={e => handleAddFormChange('title', e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea
-                className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px]"
-                value={addForm.description}
-                onChange={e => handleAddFormChange('description', e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
-                <input
-                  type="datetime-local"
-                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
-                  value={addForm.start_time}
-                  onChange={e => handleAddFormChange('start_time', e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-                <input
-                  type="datetime-local"
-                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
-                  value={addForm.end_time}
-                  onChange={e => handleAddFormChange('end_time', e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Members</label>
-              {/* Selected members as chips */}
-              <div className="flex flex-wrap gap-2 mb-2">
-                {addForm.members.map((m) => (
-                  <span key={m.id} className="flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-xs font-medium shadow-sm">
-                    {m.name}
-                    <button
-                      type="button"
-                      className="ml-1 text-blue-500 hover:text-blue-700 focus:outline-none"
-                      onClick={() => handleAddFormChange('members', addForm.members.filter(mem => mem.id !== m.id))}
-                      aria-label={`Remove ${m.name}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              {/* Select for unselected members */}
-              <select
-                className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
-                value=""
-                onChange={e => {
-                  const userId = Number(e.target.value);
-                  if (!userId) return;
-                  const user = allUsers.find(u => u.id === userId);
-                  if (user && !addForm.members.some(m => m.id === user.id)) {
-                    handleAddFormChange('members', [...addForm.members, user]);
-                  }
-                }}
-              >
-                <option value="">Select member...</option>
-                {allUsers.filter(u => !addForm.members.some(m => m.id === u.id)).map(u => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-2 mt-2">
-              <Button type="submit" variant="default" className="flex-1">Add Meeting</Button>
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setAddModalOpen(false)}>Cancel</Button>
-            </div>
-          </form>
-        </DialogContent>
+            </form>
+          </DialogContent>
+        </Dialog>
       </Dialog>
-    </Dialog>
+    </div>
   );
 }
