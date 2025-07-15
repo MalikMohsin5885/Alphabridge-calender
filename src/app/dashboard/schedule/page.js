@@ -1,9 +1,9 @@
-
-import React from 'react';
+"use client";
+import withPrivateRoute from "../../../components/withPrivateRoute";
 import ScheduleLeftSection from '../../../components/ScheduleLeftSection';
 import ScheduleRightSection from '../../../components/ScheduleRightSection';
 
-export default function SchedulePage() {
+function SchedulePage() {
   return (
     <div className="relative min-h-[80vh] px-8 py-6 mt-24">
       <div className="flex h-full w-full gap-4">
@@ -11,7 +11,6 @@ export default function SchedulePage() {
         <div className="w-[30%]">
           <ScheduleLeftSection />
         </div>
-        
         {/* Right Section - 60% */}
         <div className="w-[70%]">
           <ScheduleRightSection />
@@ -20,3 +19,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+export default withPrivateRoute(SchedulePage);

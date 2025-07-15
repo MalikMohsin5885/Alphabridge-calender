@@ -1,4 +1,5 @@
 "use client";
+import withPrivateRoute from "../../components/withPrivateRoute";
 import React from 'react';
 import { CalendarDays, Users, UserCheck, Clock, Activity, CheckCircle, PhoneCall } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
@@ -58,7 +59,7 @@ const recentMeetings = [
   { id: 4, title: 'Planning Meeting', time: 'Yesterday, 8:00 PM', members: ['Emily Smith', 'Ahmed Ali'] },
 ];
 
-export default function DashboardPage() {
+function DashboardPage() {
   const [selectedUser, setSelectedUser] = React.useState(users[0].id);
   const userStats = callStats.find((c) => c.userId === selectedUser) || { placed: 0, received: 0 };
   const chartData = [
@@ -159,3 +160,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+export default withPrivateRoute(DashboardPage);
