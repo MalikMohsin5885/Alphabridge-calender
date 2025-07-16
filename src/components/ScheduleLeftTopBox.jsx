@@ -17,7 +17,6 @@ export default function ScheduleLeftTopBox({ selectedDate, setSelectedDate }) {
             {mounted && selectedDate ? selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : ''}
           </div>
         </div>
-        <Button variant="outline" size="sm" className="rounded-full px-4 py-1 text-xs font-semibold shadow-sm">Today</Button>
       </div>
       <Calendar
         mode="single"

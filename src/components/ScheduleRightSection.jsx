@@ -34,12 +34,7 @@ const TIME_SLOTS = (() => {
 const MEETING_BOX_WIDTH = 200; // px
 const MEETING_BOX_GAP = 16; // px
 
-const allUsers = [
-  { id: 101, name: 'Ahmed Ali' },
-  { id: 102, name: 'Sara Khan' },
-  { id: 103, name: 'John Doe' },
-  { id: 104, name: 'Emily Smith' },
-];
+// Users will be fetched from the API
 
 const initialMeetings = [
   {
@@ -196,14 +191,36 @@ export default function ScheduleRightSection({ selectedDate }) {
   const [hoveredMeetingId, setHoveredMeetingId] = React.useState(null);
   const [mounted, setMounted] = React.useState(false);
   const [addModalOpen, setAddModalOpen] = React.useState(false);
+  const [allUsers, setAllUsers] = React.useState([]);
   const [addForm, setAddForm] = React.useState({
     title: '',
     description: '',
     start_time: '',
     end_time: '',
-    created_by: allUsers[0],
+    created_by: null,
     members: [],
   });
+
+  // Fetch users from API on mount
+  React.useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    fetch('http://127.0.0.1:8000/api/users/', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(res => res.json())
+      .then(data => {
+        setAllUsers(data);
+        // Set default created_by for addForm if not set
+        setAddForm(prev => ({ ...prev, created_by: data[0] || null }));
+      })
+      .catch(err => {
+        console.error('Failed to fetch users:', err);
+        setAllUsers([]);
+      });
+  }, []);
 
   React.useEffect(() => setMounted(true), []);
 
@@ -313,6 +330,7 @@ export default function ScheduleRightSection({ selectedDate }) {
         newMembers = prev.members.filter((m) => m.id !== userId);
       } else {
         const user = allUsers.find((u) => u.id === userId);
+        if (!user) return prev;
         newMembers = [...prev.members, user];
       }
       return { ...prev, members: newMembers };
@@ -331,37 +349,96 @@ export default function ScheduleRightSection({ selectedDate }) {
         newMembers = prev.members.filter((m) => m.id !== userId);
       } else {
         const user = allUsers.find((u) => u.id === userId);
+        if (!user) return prev;
         newMembers = [...prev.members, user];
       }
       return { ...prev, members: newMembers };
     });
   };
-  const handleAddMeeting = (e) => {
+
+  // Helper to convert local datetime-local string to UTC ISO string
+  function toUTCISOString(localDateTimeString) {
+    if (!localDateTimeString) return '';
+    const localDate = new Date(localDateTimeString);
+    return localDate.toISOString();
+  }
+
+  const handleAddMeeting = async (e) => {
     e.preventDefault();
-    const newMeeting = {
-      id: Date.now(),
+    const token = localStorage.getItem('access_token');
+    // Prepare the payload for the API
+    const payload = {
       title: addForm.title,
       description: addForm.description,
-      start: addForm.start_time.slice(11, 16),
-      end: addForm.end_time.slice(11, 16),
-      start_time: addForm.start_time,
-      end_time: addForm.end_time,
-      created_by: addForm.created_by,
-      members: addForm.members,
-      color: 'from-blue-100 to-blue-50',
-      text: 'text-blue-900',
-      icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
+      start_time: toUTCISOString(addForm.start_time),
+      end_time: toUTCISOString(addForm.end_time),
+      created_by: addForm.created_by?.id,
+      member_ids: addForm.members.map(m => m.id),
     };
-    setMeetings((prev) => [...prev, newMeeting]);
-    setAddModalOpen(false);
-    setAddForm({
-      title: '',
-      description: '',
-      start_time: '',
-      end_time: '',
-      created_by: allUsers[0],
-      members: [],
-    });
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/meetings/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error('Failed to add meeting');
+      // Optionally, you can get the created meeting from the response
+      // const createdMeeting = await response.json();
+      // Refetch meetings for the selected date
+      const yyyy = selectedDate.getFullYear();
+      const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(selectedDate.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+      const meetingsRes = await fetch(`http://127.0.0.1:8000/api/meetings/?date=${formattedDate}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await meetingsRes.json();
+      const mappedMeetings = data
+        .filter(meeting => {
+          const meetingDate = new Date(meeting.start_time);
+          return (
+            meetingDate.getFullYear() === selectedDate.getFullYear() &&
+            meetingDate.getMonth() === selectedDate.getMonth() &&
+            meetingDate.getDate() === selectedDate.getDate()
+          );
+        })
+        .map(meeting => {
+          const startDate = new Date(meeting.start_time);
+          const endDate = new Date(meeting.end_time);
+          const pad = n => n.toString().padStart(2, '0');
+          const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+          const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+          return {
+            ...meeting,
+            start,
+            end,
+            created_by: typeof meeting.created_by === 'object' ? meeting.created_by : { id: meeting.created_by, name: `User ${meeting.created_by}` },
+            // Use members as returned by backend (should be array of user objects)
+            color: 'from-blue-100 to-blue-50',
+            text: 'text-blue-900',
+            icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
+          };
+        });
+      setMeetings(mappedMeetings);
+      setAddModalOpen(false);
+      setAddForm({
+        title: '',
+        description: '',
+        start_time: '',
+        end_time: '',
+        created_by: allUsers[0] || null,
+        members: [],
+      });
+    } catch (err) {
+      console.error('Failed to add meeting:', err);
+      // Optionally show an error message to the user
+    }
   };
 
   // Display the selected date at the top
@@ -518,9 +595,10 @@ export default function ScheduleRightSection({ selectedDate }) {
                   <User className="w-4 h-4 text-green-500" />
                   <select
                     className="border rounded px-2 py-1 text-gray-700"
-                    value={editData.created_by.id}
+                    value={editData.created_by?.id || ''}
                     onChange={e => handleEditChange('created_by', allUsers.find(u => u.id === Number(e.target.value)))}
                   >
+                    <option value="" disabled>Select creator...</option>
                     {allUsers.map(u => (
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
@@ -636,6 +714,7 @@ export default function ScheduleRightSection({ selectedDate }) {
                       handleAddFormChange('members', [...addForm.members, user]);
                     }
                   }}
+                  disabled={allUsers.length === 0}
                 >
                   <option value="">Select member...</option>
                   {allUsers.filter(u => !addForm.members.some(m => m.id === u.id)).map(u => (

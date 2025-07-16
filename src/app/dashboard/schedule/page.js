@@ -5,7 +5,7 @@ import ScheduleRightSection from '../../../components/ScheduleRightSection';
 import React, { useState } from 'react';
 
 function SchedulePage() {
-  const [selectedDate, setSelectedDate] = useState(new Date(2025, 5, 12));
+  const [selectedDate, setSelectedDate] = useState(new Date());
   return (
     <div className="relative min-h-[80vh] px-8 py-6 mt-24">
       <div className="flex h-full w-full gap-4">
