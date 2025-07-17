@@ -2,6 +2,8 @@
 
 const API_BASE_URL = 'http://127.0.0.1:8000'; // Replace with your backend URL
 
+import { fetchUserProfile } from './userService';
+
 export async function login(username, password) {
   const response = await fetch(`http://127.0.0.1:8000/auth/login/`, {
     method: 'POST',
@@ -16,6 +18,11 @@ export async function login(username, password) {
   const data = await response.json();
   localStorage.setItem('access_token', data.access);
   localStorage.setItem('refresh_token', data.refresh);
+
+  // Immediately fetch and store user profile
+  const profile = await fetchUserProfile(data.access);
+  localStorage.setItem('user_info', JSON.stringify(profile));
+
   return data;
 }
 

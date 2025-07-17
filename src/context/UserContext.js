@@ -14,6 +14,7 @@ export function UserProvider({ children }) {
     }
     return null;
   });
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export function UserProvider({ children }) {
     } else {
       setUser(null);
       localStorage.removeItem("user_info");
+      setLoading(false);
     }
   }, []);
 
@@ -31,16 +33,18 @@ export function UserProvider({ children }) {
       const data = await fetchUserProfile(token);
       setUser(data);
       localStorage.setItem("user_info", JSON.stringify(data));
+      setLoading(false);
     } catch (error) {
       setUser(null);
       localStorage.removeItem("user_info");
+      setLoading(false);
       if (router) router.replace('/login');
     }
   }
 
   return (
-    <UserContext.Provider value={{ user, setUser }}>
-      {children}
+    <UserContext.Provider value={{ user, setUser, loading }}>
+      {!loading && children}
     </UserContext.Provider>
   );
 }

@@ -22,7 +22,7 @@ export default function Header() {
   const isHome = pathname === "/dashboard";
   const isSchedule = pathname === "/dashboard/schedule";
   const [scrolled, setScrolled] = React.useState(false);
-  const { user } = useUser();
+  const { user, loading } = useUser();
   const router = useRouter();
 
   React.useEffect(() => {
@@ -40,6 +40,9 @@ export default function Header() {
   };
 
   // Loading state: don't render user info until loaded
+  if (loading) {
+    return null; // Or a spinner
+  }
   if (user === null) {
     return (
       <header className="w-full flex items-center justify-between px-7 py-6 transition-all duration-300">
