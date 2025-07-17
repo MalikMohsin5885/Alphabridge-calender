@@ -308,13 +308,108 @@ export default function ScheduleRightSection({ selectedDate }) {
   };
 
   // Handle save edit
-  const saveEdit = () => {
-    setMeetings((prev) =>
-      prev.map((m) => (m.id === editData.id ? { ...editData } : m))
-    );
-    setSelectedMeeting({ ...editData });
-    setEditMode(false);
-    setEditData(null);
+  const handleEditMeeting = async () => {
+    // Validation (reuse add meeting validation logic if needed)
+    if (!editData.title || !editData.description || !editData.date || !editData.start_time || !editData.end_time || !editData.members.length) {
+      alert('Please fill all fields and select at least one member.');
+      return;
+    }
+    // Only allow times from 17:00 to 23:59 or 00:00 to 02:00
+    function isAllowedTimeRange(time) {
+      if (!time) return false;
+      const [h, m] = time.split(':').map(Number);
+      return (h >= 17 && h <= 23) || (h >= 0 && h <= 2);
+    }
+    if (!isAllowedTimeRange(editData.start_time) || !isAllowedTimeRange(editData.end_time)) {
+      alert('Meetings can only be scheduled between 5:00 PM and 2:00 AM.');
+      return;
+    }
+    // If date is today, start and end time must be after current time
+    const todayStr = getTodayDateString();
+    if (editData.date === todayStr) {
+      const now = new Date();
+      const nowH = now.getHours();
+      const nowM = now.getMinutes();
+      const [startH, startM] = editData.start_time.split(':').map(Number);
+      const [endH, endM] = editData.end_time.split(':').map(Number);
+      if (startH < nowH || (startH === nowH && startM <= nowM)) {
+        alert('Start time must be after the current time.');
+        return;
+      }
+      if (endH < nowH || (endH === nowH && endM <= nowM)) {
+        alert('End time must be after the current time.');
+        return;
+      }
+    }
+    // Ensure start_time and end_time are in HH:mm:ss format
+    function toTimeWithSeconds(time) {
+      if (!time) return '';
+      return time.length === 5 ? `${time}:00` : time;
+    }
+    const token = localStorage.getItem('access_token');
+    const payload = {
+      title: editData.title,
+      description: editData.description,
+      date: editData.date,
+      start_time: toTimeWithSeconds(editData.start_time),
+      end_time: toTimeWithSeconds(editData.end_time),
+      member_ids: editData.members.map(m => m.id),
+    };
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/meetings/${editData.id}/edit/`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error('Failed to update meeting');
+      // Refetch meetings for the selected date
+      const yyyy = selectedDate.getFullYear();
+      const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(selectedDate.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+      const meetingsRes = await fetch(`http://127.0.0.1:8000/api/meetings/?date=${formattedDate}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await meetingsRes.json();
+      const mappedMeetings = data
+        .filter(meeting => {
+          const meetingDate = new Date(`${meeting.date}T${meeting.start_time}`);
+          return (
+            meetingDate.getFullYear() === selectedDate.getFullYear() &&
+            meetingDate.getMonth() === selectedDate.getMonth() &&
+            meetingDate.getDate() === selectedDate.getDate()
+          );
+        })
+        .map(meeting => {
+          const startDate = new Date(`${meeting.date}T${meeting.start_time}`);
+          const endDate = new Date(`${meeting.date}T${meeting.end_time}`);
+          const pad = n => n.toString().padStart(2, '0');
+          const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+          const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+          return {
+            ...meeting,
+            start,
+            end,
+            created_by: typeof meeting.created_by === 'object' ? meeting.created_by : { id: meeting.created_by, name: `User ${meeting.created_by}` },
+            color: 'from-blue-200 to-blue-100',
+            text: 'text-blue-900',
+            icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
+          };
+        });
+      setMeetings(mappedMeetings);
+      setEditMode(false);
+      setEditData(null);
+      setModalOpen(false);
+    } catch (err) {
+      console.error('Failed to update meeting:', err);
+      alert('Failed to update meeting.');
+    }
   };
 
   // Handle edit field change
@@ -380,6 +475,25 @@ export default function ScheduleRightSection({ selectedDate }) {
     if (addForm.date < getTodayDateString()) {
       alert('You cannot select a date before today.');
       return;
+    }
+    // If date is today, start and end time must be after current time
+    const todayStr = getTodayDateString();
+    if (addForm.date === todayStr) {
+      const now = new Date();
+      const nowH = now.getHours();
+      const nowM = now.getMinutes();
+      const [startH, startM] = addForm.start_time.split(':').map(Number);
+      const [endH, endM] = addForm.end_time.split(':').map(Number);
+      // Check start time
+      if (startH < nowH || (startH === nowH && startM <= nowM)) {
+        alert('Start time must be after the current time.');
+        return;
+      }
+      // Check end time
+      if (endH < nowH || (endH === nowH && endM <= nowM)) {
+        alert('End time must be after the current time.');
+        return;
+      }
     }
     // Ensure start_time and end_time are in HH:mm:ss format
     function toTimeWithSeconds(time) {
@@ -601,21 +715,41 @@ export default function ScheduleRightSection({ selectedDate }) {
                 />
               </DialogTitle>
               <DialogDescription>
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-blue-500" />
-                  <input
-                    type="datetime-local"
-                    className="border rounded px-2 py-1 text-gray-700"
-                    value={editData.start_time.slice(0,16)}
-                    onChange={e => handleEditChange('start_time', e.target.value)}
-                  />
-                  <span>-</span>
-                  <input
-                    type="datetime-local"
-                    className="border rounded px-2 py-1 text-gray-700"
-                    value={editData.end_time.slice(0,16)}
-                    onChange={e => handleEditChange('end_time', e.target.value)}
-                  />
+                <div className="flex gap-4 mb-2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input
+                      type="date"
+                      className="border rounded px-2 py-1 text-gray-700 w-full"
+                      value={editData.date}
+                      onChange={e => handleEditChange('date', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      className="border rounded px-2 py-1 text-gray-700 w-full"
+                      value={editData.start_time}
+                      onChange={e => handleEditChange('start_time', e.target.value)}
+                      required
+                      min="17:00"
+                      max="02:00"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                    <input
+                      type="time"
+                      className="border rounded px-2 py-1 text-gray-700 w-full"
+                      value={editData.end_time}
+                      onChange={e => handleEditChange('end_time', e.target.value)}
+                      required
+                      min="17:00"
+                      max="02:00"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                   <User className="w-4 h-4 text-green-500" />
@@ -655,7 +789,7 @@ export default function ScheduleRightSection({ selectedDate }) {
                 </div>
               </DialogDescription>
               <div className="flex gap-2 mt-4">
-                <Button variant="default" className="flex-1 flex items-center gap-2" onClick={saveEdit}>
+                <Button variant="default" className="flex-1 flex items-center gap-2" onClick={handleEditMeeting}>
                   <Check className="w-4 h-4" /> Save
                 </Button>
                 <Button variant="outline" className="flex-1 flex items-center gap-2" onClick={cancelEdit}>
@@ -708,6 +842,8 @@ export default function ScheduleRightSection({ selectedDate }) {
                     value={addForm.start_time}
                     onChange={e => handleAddFormChange('start_time', e.target.value)}
                     required
+                    min="17:00"
+                    max="02:00"
                   />
                 </div>
                 <div className="flex-1">
@@ -718,6 +854,8 @@ export default function ScheduleRightSection({ selectedDate }) {
                     value={addForm.end_time}
                     onChange={e => handleAddFormChange('end_time', e.target.value)}
                     required
+                    min="17:00"
+                    max="02:00"
                   />
                 </div>
               </div>
