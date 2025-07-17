@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { login } from "../services/loginService";
+import { useUser } from "../context/UserContext";
 
 const Login = () => {
   const router = useRouter();
+  const { setUser } = useUser();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -90,6 +92,9 @@ const Login = () => {
     try {
       // Call login service
       await login(formData.email, formData.password);
+      // Update user context immediately after login
+      const profile = JSON.parse(localStorage.getItem('user_info'));
+      setUser(profile);
       // On success, redirect to dashboard or home page
       router.push("/dashboard");
     } catch (error) {
