@@ -20,11 +20,17 @@ export async function login(username, password) {
 }
 
 export function getAccessToken() {
-  return localStorage.getItem('access_token');
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('access_token');
+  }
+  return null;
 }
 
 export function getRefreshToken() {
-  return localStorage.getItem('refresh_token');
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('refresh_token');
+  }
+  return null;
 }
 
 export function logout() {

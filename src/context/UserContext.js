@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getAccessToken } from '../services/loginService';
 import { fetchUserProfile } from '../services/userService';
+import { useRouter } from 'next/navigation';
 
 const UserContext = createContext(null);
 
@@ -13,6 +14,7 @@ export function UserProvider({ children }) {
     }
     return null;
   });
+  const router = useRouter();
 
   useEffect(() => {
     const token = getAccessToken();
@@ -32,6 +34,7 @@ export function UserProvider({ children }) {
     } catch (error) {
       setUser(null);
       localStorage.removeItem("user_info");
+      if (router) router.replace('/login');
     }
   }
 

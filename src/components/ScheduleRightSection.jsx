@@ -195,8 +195,9 @@ export default function ScheduleRightSection({ selectedDate }) {
   const [addForm, setAddForm] = React.useState({
     title: '',
     description: '',
-    start_time: '',
-    end_time: '',
+    date: '', // new field for date
+    start_time: '', // now just time, e.g. '14:30'
+    end_time: '', // now just time, e.g. '15:30'
     created_by: null,
     members: [],
   });
@@ -247,7 +248,8 @@ export default function ScheduleRightSection({ selectedDate }) {
         // Filter meetings to only include those matching the selected date
         const mappedMeetings = data
           .filter(meeting => {
-            const meetingDate = new Date(meeting.start_time);
+            // Combine date and time for correct filtering
+            const meetingDate = new Date(`${meeting.date}T${meeting.start_time}`);
             return (
               meetingDate.getFullYear() === selectedDate.getFullYear() &&
               meetingDate.getMonth() === selectedDate.getMonth() &&
@@ -255,14 +257,13 @@ export default function ScheduleRightSection({ selectedDate }) {
             );
           })
           .map(meeting => {
-            // Parse start and end time to HH:mm
-            const startDate = new Date(meeting.start_time);
-            const endDate = new Date(meeting.end_time);
+            // Combine date and time to create a proper Date object
+            const startDate = new Date(`${meeting.date}T${meeting.start_time}`);
+            const endDate = new Date(`${meeting.date}T${meeting.end_time}`);
             const pad = n => n.toString().padStart(2, '0');
             const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
             const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
 
-            // Use ID as fallback for created_by
             return {
               ...meeting,
               start,
@@ -363,16 +364,34 @@ export default function ScheduleRightSection({ selectedDate }) {
     return localDate.toISOString();
   }
 
+  // Helper to get today's date in YYYY-MM-DD format
+  function getTodayDateString() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
   const handleAddMeeting = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('access_token');
-    // Prepare the payload for the API
+    // Prevent selecting a date before today
+    if (addForm.date < getTodayDateString()) {
+      alert('You cannot select a date before today.');
+      return;
+    }
+    // Ensure start_time and end_time are in HH:mm:ss format
+    function toTimeWithSeconds(time) {
+      if (!time) return '';
+      return time.length === 5 ? `${time}:00` : time;
+    }
     const payload = {
       title: addForm.title,
       description: addForm.description,
-      start_time: toUTCISOString(addForm.start_time),
-      end_time: toUTCISOString(addForm.end_time),
-      created_by: addForm.created_by?.id,
+      date: addForm.date,
+      start_time: toTimeWithSeconds(addForm.start_time),
+      end_time: toTimeWithSeconds(addForm.end_time),
       member_ids: addForm.members.map(m => m.id),
     };
     try {
@@ -430,6 +449,7 @@ export default function ScheduleRightSection({ selectedDate }) {
       setAddForm({
         title: '',
         description: '',
+        date: '',
         start_time: '',
         end_time: '',
         created_by: allUsers[0] || null,
@@ -540,11 +560,17 @@ export default function ScheduleRightSection({ selectedDate }) {
               </DialogTitle>
               <DialogDescription>
                 <div className="flex items-center gap-2 mb-2">
+                  <CalendarDays className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium text-gray-700">
+                    {selectedMeeting.date ? new Date(selectedMeeting.date).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-4 h-4 text-blue-500" />
                   <span className="font-medium text-gray-700">
-                    {mounted ? new Date(selectedMeeting.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    {mounted ? new Date(`${selectedMeeting.date}T${selectedMeeting.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     {' - '}
-                    {mounted ? new Date(selectedMeeting.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    {mounted ? new Date(`${selectedMeeting.date}T${selectedMeeting.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mb-2">
@@ -664,9 +690,20 @@ export default function ScheduleRightSection({ selectedDate }) {
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                    value={addForm.date}
+                    onChange={e => handleAddFormChange('date', e.target.value)}
+                    required
+                    min={getTodayDateString()}
+                  />
+                </div>
+                <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
                   <input
-                    type="datetime-local"
+                    type="time"
                     className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
                     value={addForm.start_time}
                     onChange={e => handleAddFormChange('start_time', e.target.value)}
@@ -676,7 +713,7 @@ export default function ScheduleRightSection({ selectedDate }) {
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
                   <input
-                    type="datetime-local"
+                    type="time"
                     className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
                     value={addForm.end_time}
                     onChange={e => handleAddFormChange('end_time', e.target.value)}
