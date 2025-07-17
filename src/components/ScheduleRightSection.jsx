@@ -11,6 +11,7 @@ import {
   DialogDescription,
   DialogClose,
 } from '@/components/ui/dialog';
+import { useUser } from '../context/UserContext';
 
 const TIME_SLOTS = (() => {
   const slots = [];
@@ -183,6 +184,7 @@ const calculateMeetingLayout = (meeting, allMeetings) => {
 };
 
 export default function ScheduleRightSection({ selectedDate }) {
+  const { user } = useUser();
   const [meetings, setMeetings] = React.useState([]);
   const [selectedMeeting, setSelectedMeeting] = React.useState(null);
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -213,9 +215,9 @@ export default function ScheduleRightSection({ selectedDate }) {
     })
       .then(res => res.json())
       .then(data => {
-        setAllUsers(data);
+        setAllUsers(Array.isArray(data) ? data : []);
         // Set default created_by for addForm if not set
-        setAddForm(prev => ({ ...prev, created_by: data[0] || null }));
+        setAddForm(prev => ({ ...prev, created_by: (Array.isArray(data) && data[0]) || null }));
       })
       .catch(err => {
         console.error('Failed to fetch users:', err);
@@ -594,9 +596,12 @@ export default function ScheduleRightSection({ selectedDate }) {
                 </>
               )}
             </div>
+            {/* Only show Add Meeting button if user is not a Member */}
+            {user?.role !== 'Member' && (
             <Button variant="default" size="sm" className="rounded-full flex items-center gap-2 shadow-md" onClick={() => setAddModalOpen(true)}>
               <Plus className="w-4 h-4" /> Add Meeting
             </Button>
+            )}
           </div>
           {/* Time grid */}
           <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -668,9 +673,12 @@ export default function ScheduleRightSection({ selectedDate }) {
             <div>
               <DialogTitle className="flex items-center gap-2">
                 {selectedMeeting.title}
-                <Button size="icon" variant="ghost" className="ml-2" onClick={startEdit} aria-label="Edit meeting">
-                  <Pencil className="w-4 h-4" />
-                </Button>
+                {/* Only show edit button if user is not a Member */}
+                {user?.role !== 'Member' && (
+                  <Button size="icon" variant="ghost" className="ml-2" onClick={startEdit} aria-label="Edit meeting">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                )}
               </DialogTitle>
               <DialogDescription>
                 <div className="flex items-center gap-2 mb-2">
