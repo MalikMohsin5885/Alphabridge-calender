@@ -99,9 +99,27 @@ const Login = () => {
       router.push("/dashboard");
     } catch (error) {
       console.error("Login error:", error);
+      
+      // Extract error message from the backend response
+      let errorMessage = "Invalid email or password.";
+      
+      if (error.message && error.message.includes('{"non_field_errors"')) {
+        try {
+          const errorMatch = error.message.match(/\{.*\}/);
+          if (errorMatch) {
+            const errorData = JSON.parse(errorMatch[0]);
+            if (errorData.non_field_errors && errorData.non_field_errors.length > 0) {
+              errorMessage = errorData.non_field_errors[0];
+            }
+          }
+        } catch (parseError) {
+          console.error("Could not parse error message:", parseError);
+        }
+      }
+      
       setErrors((prev) => ({
         ...prev,
-        password: "Invalid email or password."
+        password: errorMessage
       }));
     } finally {
       setIsLoading(false);
@@ -124,7 +142,7 @@ const Login = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Left side - Lottie Animation */}
       <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-blue-600 to-blue-800">
         <div className="w-full flex items-center justify-center p-8">
@@ -142,23 +160,23 @@ const Login = () => {
       </div>
 
       {/* Right side - Login Form */}
-      <div className="w-full md:w-1/2 p-8 flex flex-col justify-center bg-white">
+      <div className="w-full md:w-1/2 p-8 flex flex-col justify-center bg-white dark:bg-gray-800">
         <div className="max-w-md mx-auto w-full">
           <div className="text-center mb-8">
             <img
-              src="/images/the_alphabridge_logo.jpg"
+              src="/images/the_alphabridge_logo.png"
               alt="The Alphabridge Logo"
               className="mx-auto mb-6 h-16 w-auto object-contain"
             />
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2 dark:text-gray-100">
               Welcome Back
             </h1>
-            <p className="text-gray-600">Please sign in to your account</p>
+            <p className="text-gray-600 dark:text-gray-400">Please sign in to your account</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Email Address
               </label>
               <div className="relative">
@@ -169,7 +187,7 @@ const Login = () => {
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${
                     errors.email ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -180,7 +198,7 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Password
               </label>
               <div className="relative">
@@ -191,7 +209,7 @@ const Login = () => {
                   placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleChange}
-                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${
                     errors.password ? "border-red-500" : "border-gray-300"
                   }`}
                 />

@@ -9,25 +9,25 @@ const stats = [
     label: 'Total Meetings',
     value: 42,
     icon: <CalendarDays className="w-7 h-7 text-blue-500" />,
-    bg: 'bg-blue-50',
+    bg: 'bg-blue-50 dark:bg-blue-900/20',
   },
   {
     label: 'Upcoming Meetings',
     value: 5,
     icon: <Clock className="w-7 h-7 text-green-500" />,
-    bg: 'bg-green-50',
+    bg: 'bg-green-50 dark:bg-green-900/20',
   },
   {
     label: 'Total Users',
     value: 18,
     icon: <Users className="w-7 h-7 text-purple-500" />,
-    bg: 'bg-purple-50',
+    bg: 'bg-purple-50 dark:bg-purple-900/20',
   },
   {
     label: 'Active Members',
     value: 12,
     icon: <UserCheck className="w-7 h-7 text-yellow-500" />,
-    bg: 'bg-yellow-50',
+    bg: 'bg-yellow-50 dark:bg-yellow-900/20',
   },
 ];
 
@@ -69,20 +69,20 @@ function DashboardPage() {
 
   return (
     <div className="p-6 mt-20 max-w-7xl mx-auto w-full">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Dashboard</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-8 dark:text-gray-100">Dashboard</h1>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className={`flex items-center gap-4 p-5 rounded-2xl shadow-lg border border-gray-100 ${stat.bg} transition-all hover:scale-[1.03] hover:shadow-2xl`}
+            className={`flex items-center gap-4 p-5 rounded-2xl shadow-lg border border-gray-100 ${stat.bg} transition-all hover:scale-[1.03] hover:shadow-2xl dark:border-gray-700`}
           >
-            <div className="flex items-center justify-center rounded-xl bg-white/80 shadow-inner p-2">
+            <div className="flex items-center justify-center rounded-xl bg-white/80 shadow-inner p-2 dark:bg-gray-700/80">
               {stat.icon}
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-bold text-gray-800">{stat.value}</span>
-              <span className="text-gray-500 text-xs font-medium">{stat.label}</span>
+              <span className="text-xl font-bold text-gray-800 dark:text-gray-100">{stat.value}</span>
+              <span className="text-gray-500 text-xs font-medium dark:text-gray-400">{stat.label}</span>
             </div>
           </div>
         ))}
@@ -90,11 +90,11 @@ function DashboardPage() {
       {/* Main Grid: Chart + Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         {/* Chart */}
-        <div className="col-span-2 bg-white rounded-2xl shadow-lg border border-gray-100 p-6 flex flex-col">
+        <div className="col-span-2 bg-white rounded-2xl shadow-lg border border-gray-100 p-6 flex flex-col dark:bg-gray-800 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-gray-800">User Call Stats</h2>
+            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">User Call Stats</h2>
             <select
-              className="border rounded-lg px-3 py-2 text-gray-700 bg-gray-50 focus:ring-2 focus:ring-blue-400 outline-none"
+              className="border rounded-lg px-3 py-2 text-gray-700 bg-gray-50 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
               value={selectedUser}
               onChange={e => setSelectedUser(Number(e.target.value))}
             >
@@ -118,15 +118,15 @@ function DashboardPage() {
           </ResponsiveContainer>
         </div>
         {/* Activity Feed */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 flex flex-col">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Activity Feed</h2>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 flex flex-col dark:bg-gray-800 dark:border-gray-700">
+          <h2 className="text-lg font-bold text-gray-800 mb-4 dark:text-gray-100">Activity Feed</h2>
           <div className="flex flex-col gap-4">
             {activityFeed.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition">
+              <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition dark:hover:bg-gray-700">
                 <div>{item.icon}</div>
                 <div className="flex flex-col">
-                  <span className="text-sm text-gray-700 font-medium">{item.text}</span>
-                  <span className="text-xs text-gray-400">{item.time}</span>
+                  <span className="text-sm text-gray-700 font-medium dark:text-gray-300">{item.text}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{item.time}</span>
                 </div>
               </div>
             ))}
@@ -134,23 +134,23 @@ function DashboardPage() {
         </div>
       </div>
       {/* Recent Meetings List */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">Recent Meetings</h2>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 dark:bg-gray-800 dark:border-gray-700">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 dark:text-gray-100">Recent Meetings</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="text-gray-500 border-b">
-                <th className="py-2 px-4 text-left font-semibold">Title</th>
-                <th className="py-2 px-4 text-left font-semibold">Time</th>
-                <th className="py-2 px-4 text-left font-semibold">Members</th>
+              <tr className="text-gray-500 border-b dark:border-gray-600">
+                <th className="py-2 px-4 text-left font-semibold dark:text-gray-400">Title</th>
+                <th className="py-2 px-4 text-left font-semibold dark:text-gray-400">Time</th>
+                <th className="py-2 px-4 text-left font-semibold dark:text-gray-400">Members</th>
               </tr>
             </thead>
             <tbody>
               {recentMeetings.map((meeting) => (
-                <tr key={meeting.id} className="border-b hover:bg-blue-50 transition">
-                  <td className="py-2 px-4 font-medium text-blue-900">{meeting.title}</td>
-                  <td className="py-2 px-4">{meeting.time}</td>
-                  <td className="py-2 px-4 text-gray-700">{meeting.members.join(', ')}</td>
+                <tr key={meeting.id} className="border-b hover:bg-blue-50 transition dark:border-gray-700 dark:hover:bg-gray-700">
+                  <td className="py-2 px-4 font-medium text-blue-900 dark:text-blue-300">{meeting.title}</td>
+                  <td className="py-2 px-4 dark:text-gray-300">{meeting.time}</td>
+                  <td className="py-2 px-4 text-gray-700 dark:text-gray-300">{meeting.members.join(', ')}</td>
                 </tr>
               ))}
             </tbody>

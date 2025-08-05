@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   return (
-    <div className="relative min-h-[80vh] px-8 py-6 mt-24">
+    <div className="relative min-h-[80vh] px-8 py-6 mt-24 dark:bg-gray-900">
       <div className="flex h-full w-full gap-4">
         {/* Left Section - 40% */}
         <div className="w-[30%]">

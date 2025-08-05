@@ -12,6 +12,8 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { useUser } from '../context/UserContext';
+import { fetchMeetings, addMeeting, editMeeting } from '../services/meetingService';
+import { fetchDepartmentsAndUsers } from '../services/departmentService';
 
 const TIME_SLOTS = (() => {
   const slots = [];
@@ -194,59 +196,62 @@ export default function ScheduleRightSection({ selectedDate }) {
   const [mounted, setMounted] = React.useState(false);
   const [addModalOpen, setAddModalOpen] = React.useState(false);
   const [allUsers, setAllUsers] = React.useState([]);
+  const [closers, setClosers] = React.useState([]);
+  const [allDepartments, setAllDepartments] = React.useState([]);
   const [addForm, setAddForm] = React.useState({
     title: '',
     description: '',
-    date: '', // new field for date
-    start_time: '', // now just time, e.g. '14:30'
-    end_time: '', // now just time, e.g. '15:30'
-    created_by: null,
-    members: [],
+    date: '',
+    start_time: '',
+    end_time: '',
+    meeting_type: '',
+    department: '', // department ID
+    assignee: null, // main person
+    cc_members: [], // array of users
+    remarks: '', // general meeting remarks
+    jd_link: '', // job description link
+    resume_link: '', // resume link
   });
 
-  // Fetch users from API on mount
+  // Fetch users and departments from API on mount
   React.useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    fetch('http://127.0.0.1:8000/api/users/', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(res => res.json())
-      .then(data => {
-        setAllUsers(Array.isArray(data) ? data : []);
-        // Set default created_by for addForm if not set
-        setAddForm(prev => ({ ...prev, created_by: (Array.isArray(data) && data[0]) || null }));
-      })
-      .catch(err => {
-        console.error('Failed to fetch users:', err);
+    const loadData = async () => {
+      try {
+        const data = await fetchDepartmentsAndUsers();
+        
+        setAllUsers(Array.isArray(data.all_users) ? data.all_users : []);
+        setClosers(Array.isArray(data.closers) ? data.closers : []);
+        setAllDepartments(Array.isArray(data.departments) ? data.departments : []);
+        setAddForm(prev => ({ ...prev, assignee: (Array.isArray(data.closers) && data.closers[0]) || null }));
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
         setAllUsers([]);
-      });
+        setClosers([]);
+        setAllDepartments([]);
+      }
+    };
+    
+    loadData();
   }, []);
 
   React.useEffect(() => setMounted(true), []);
+
+  // Helper function to get department name by ID
+  const getDepartmentName = (departmentId) => {
+    if (!departmentId || !Array.isArray(allDepartments)) return 'N/A';
+    const department = allDepartments.find(dep => dep.id === departmentId);
+    return department ? department.name : 'N/A';
+  };
 
   // Fetch meetings for the selected date
   React.useEffect(() => {
     console.log('Selected date changed:', selectedDate); // Debug log
     if (!selectedDate) return;
-    // Format date as YYYY-MM-DD
-    const yyyy = selectedDate.getFullYear();
-    const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(selectedDate.getDate()).padStart(2, '0');
-    const formattedDate = `${yyyy}-${mm}-${dd}`;
-    const token = localStorage.getItem('access_token');
-    console.log('About to fetch:', `http://127.0.0.1:8000/api/meetings/?date=${formattedDate}`, 'with token:', token); // Debug log
 
-    fetch(`http://127.0.0.1:8000/api/meetings/?date=${formattedDate}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(res => res.json())
-      .then(data => {
+    const loadMeetings = async () => {
+      try {
+        const data = await fetchMeetings(selectedDate);
+        
         // Filter meetings to only include those matching the selected date
         const mappedMeetings = data
           .filter(meeting => {
@@ -266,11 +271,24 @@ export default function ScheduleRightSection({ selectedDate }) {
             const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
             const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
 
+            // Extract assignee (the participant with is_to: true)
+            const assignee = meeting.participants?.find(p => p.is_to)?.user || null;
+            
+            // Extract CC members (participants with is_to: false)
+            const ccMembers = meeting.participants?.filter(p => !p.is_to).map(p => p.user) || [];
+
             return {
               ...meeting,
               start,
               end,
-              created_by: typeof meeting.created_by === 'object' ? meeting.created_by : { id: meeting.created_by, name: `User ${meeting.created_by}` },
+              assignee,
+              cc_members: ccMembers,
+              meeting_type: meeting.meeting_type,
+              department_name: getDepartmentName(meeting.department),
+              created_by: { id: meeting.created_by, name: `User ${meeting.created_by}` },
+              remarks: meeting.remarks || '',
+              jd_link: meeting.jd_link || '',
+              resume_link: meeting.resume_link || '',
               color: 'from-blue-200 to-blue-100',
               text: 'text-blue-900',
               icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
@@ -278,11 +296,13 @@ export default function ScheduleRightSection({ selectedDate }) {
           });
         console.log('Mapped meetings:', mappedMeetings); // Debug log
         setMeetings(mappedMeetings);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Fetch error:', err); // Debug log
         setMeetings([]);
-      });
+      }
+    };
+
+    loadMeetings();
   }, [selectedDate]);
 
   const groups = groupOverlappingMeetings(meetings);
@@ -312,8 +332,8 @@ export default function ScheduleRightSection({ selectedDate }) {
   // Handle save edit
   const handleEditMeeting = async () => {
     // Validation (reuse add meeting validation logic if needed)
-    if (!editData.title || !editData.description || !editData.date || !editData.start_time || !editData.end_time || !editData.members.length) {
-      alert('Please fill all fields and select at least one member.');
+    if (!editData.title || !editData.description || !editData.date || !editData.start_time || !editData.end_time || !editData.assignee) {
+      alert('Please fill all fields and select an assignee.');
       return;
     }
     // Only allow times from 17:00 to 23:59 or 00:00 to 02:00
@@ -343,42 +363,13 @@ export default function ScheduleRightSection({ selectedDate }) {
         return;
       }
     }
-    // Ensure start_time and end_time are in HH:mm:ss format
-    function toTimeWithSeconds(time) {
-      if (!time) return '';
-      return time.length === 5 ? `${time}:00` : time;
-    }
-    const token = localStorage.getItem('access_token');
-    const payload = {
-      title: editData.title,
-      description: editData.description,
-      date: editData.date,
-      start_time: toTimeWithSeconds(editData.start_time),
-      end_time: toTimeWithSeconds(editData.end_time),
-      member_ids: editData.members.map(m => m.id),
-    };
+
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/meetings/${editData.id}/edit/`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error('Failed to update meeting');
+      await editMeeting(editData.id, editData);
+      
       // Refetch meetings for the selected date
-      const yyyy = selectedDate.getFullYear();
-      const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const dd = String(selectedDate.getDate()).padStart(2, '0');
-      const formattedDate = `${yyyy}-${mm}-${dd}`;
-      const meetingsRes = await fetch(`http://127.0.0.1:8000/api/meetings/?date=${formattedDate}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const data = await meetingsRes.json();
+      const data = await fetchMeetings(selectedDate);
+      console.log('Fetched meetings data after edit:', data);
       const mappedMeetings = data
         .filter(meeting => {
           const meetingDate = new Date(`${meeting.date}T${meeting.start_time}`);
@@ -394,17 +385,40 @@ export default function ScheduleRightSection({ selectedDate }) {
           const pad = n => n.toString().padStart(2, '0');
           const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
           const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+
+          // Extract assignee (the participant with is_to: true)
+          const assignee = meeting.participants?.find(p => p.is_to)?.user || null;
+          
+          // Extract CC members (participants with is_to: false)
+          const ccMembers = meeting.participants?.filter(p => !p.is_to).map(p => p.user) || [];
+
           return {
             ...meeting,
             start,
             end,
-            created_by: typeof meeting.created_by === 'object' ? meeting.created_by : { id: meeting.created_by, name: `User ${meeting.created_by}` },
+            assignee,
+            cc_members: ccMembers,
+            meeting_type: meeting.meeting_type,
+            department_name: getDepartmentName(meeting.department),
+            created_by: { id: meeting.created_by, name: `User ${meeting.created_by}` },
+            remarks: meeting.remarks || '',
+            jd_link: meeting.jd_link || '',
+            resume_link: meeting.resume_link || '',
             color: 'from-blue-200 to-blue-100',
             text: 'text-blue-900',
             icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
           };
         });
+      console.log('Mapped meetings after edit:', mappedMeetings);
       setMeetings(mappedMeetings);
+      
+      // Update the selectedMeeting with the updated meeting data
+      const updatedMeeting = mappedMeetings.find(m => m.id === editData.id);
+      console.log('Updated meeting found:', updatedMeeting);
+      if (updatedMeeting) {
+        setSelectedMeeting(updatedMeeting);
+      }
+      
       setEditMode(false);
       setEditData(null);
       setModalOpen(false);
@@ -419,38 +433,24 @@ export default function ScheduleRightSection({ selectedDate }) {
     setEditData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Handle members multi-select
-  const handleMembersChange = (userId) => {
-    setEditData((prev) => {
-      const exists = prev.members.some((m) => m.id === userId);
-      let newMembers;
-      if (exists) {
-        newMembers = prev.members.filter((m) => m.id !== userId);
-      } else {
-        const user = allUsers.find((u) => u.id === userId);
-        if (!user) return prev;
-        newMembers = [...prev.members, user];
-      }
-      return { ...prev, members: newMembers };
-    });
-  };
+
 
   // Add Meeting form handlers
   const handleAddFormChange = (field, value) => {
     setAddForm((prev) => ({ ...prev, [field]: value }));
   };
-  const handleAddMembersChange = (userId) => {
+  const handleAddCCMembersChange = (userId) => {
     setAddForm((prev) => {
-      const exists = prev.members.some((m) => m.id === userId);
-      let newMembers;
+      const exists = prev.cc_members.some((m) => m.id === userId);
+      let newCC;
       if (exists) {
-        newMembers = prev.members.filter((m) => m.id !== userId);
+        newCC = prev.cc_members.filter((m) => m.id !== userId);
       } else {
         const user = allUsers.find((u) => u.id === userId);
         if (!user) return prev;
-        newMembers = [...prev.members, user];
+        newCC = [...prev.cc_members, user];
       }
-      return { ...prev, members: newMembers };
+      return { ...prev, cc_members: newCC };
     });
   };
 
@@ -472,7 +472,7 @@ export default function ScheduleRightSection({ selectedDate }) {
 
   const handleAddMeeting = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('access_token');
+    
     // Prevent selecting a date before today
     if (addForm.date < getTodayDateString()) {
       alert('You cannot select a date before today.');
@@ -497,46 +497,15 @@ export default function ScheduleRightSection({ selectedDate }) {
         return;
       }
     }
-    // Ensure start_time and end_time are in HH:mm:ss format
-    function toTimeWithSeconds(time) {
-      if (!time) return '';
-      return time.length === 5 ? `${time}:00` : time;
-    }
-    const payload = {
-      title: addForm.title,
-      description: addForm.description,
-      date: addForm.date,
-      start_time: toTimeWithSeconds(addForm.start_time),
-      end_time: toTimeWithSeconds(addForm.end_time),
-      member_ids: addForm.members.map(m => m.id),
-    };
+
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/meetings/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error('Failed to add meeting');
-      // Optionally, you can get the created meeting from the response
-      // const createdMeeting = await response.json();
+      await addMeeting(addForm);
+      
       // Refetch meetings for the selected date
-      const yyyy = selectedDate.getFullYear();
-      const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const dd = String(selectedDate.getDate()).padStart(2, '0');
-      const formattedDate = `${yyyy}-${mm}-${dd}`;
-      const meetingsRes = await fetch(`http://127.0.0.1:8000/api/meetings/?date=${formattedDate}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const data = await meetingsRes.json();
+      const data = await fetchMeetings(selectedDate);
       const mappedMeetings = data
         .filter(meeting => {
-          const meetingDate = new Date(meeting.start_time);
+          const meetingDate = new Date(`${meeting.date}T${meeting.start_time}`);
           return (
             meetingDate.getFullYear() === selectedDate.getFullYear() &&
             meetingDate.getMonth() === selectedDate.getMonth() &&
@@ -544,17 +513,30 @@ export default function ScheduleRightSection({ selectedDate }) {
           );
         })
         .map(meeting => {
-          const startDate = new Date(meeting.start_time);
-          const endDate = new Date(meeting.end_time);
+          const startDate = new Date(`${meeting.date}T${meeting.start_time}`);
+          const endDate = new Date(`${meeting.date}T${meeting.end_time}`);
           const pad = n => n.toString().padStart(2, '0');
           const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
           const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+
+          // Extract assignee (the participant with is_to: true)
+          const assignee = meeting.participants?.find(p => p.is_to)?.user || null;
+          
+          // Extract CC members (participants with is_to: false)
+          const ccMembers = meeting.participants?.filter(p => !p.is_to).map(p => p.user) || [];
+
           return {
             ...meeting,
             start,
             end,
-            created_by: typeof meeting.created_by === 'object' ? meeting.created_by : { id: meeting.created_by, name: `User ${meeting.created_by}` },
-            // Use members as returned by backend (should be array of user objects)
+            assignee,
+            cc_members: ccMembers,
+            meeting_type: meeting.meeting_type,
+            department_name: getDepartmentName(meeting.department),
+            created_by: { id: meeting.created_by, name: `User ${meeting.created_by}` },
+            remarks: meeting.remarks || '',
+            jd_link: meeting.jd_link || '',
+            resume_link: meeting.resume_link || '',
             color: 'from-blue-100 to-blue-50',
             text: 'text-blue-900',
             icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
@@ -568,12 +550,17 @@ export default function ScheduleRightSection({ selectedDate }) {
         date: '',
         start_time: '',
         end_time: '',
-        created_by: allUsers[0] || null,
-        members: [],
+        meeting_type: '',
+        department: '',
+        assignee: allUsers[0] || null,
+        cc_members: [],
+        remarks: '',
+        jd_link: '',
+        resume_link: '',
       });
     } catch (err) {
       console.error('Failed to add meeting:', err);
-      // Optionally show an error message to the user
+      alert('Failed to add meeting.');
     }
   };
 
@@ -581,16 +568,16 @@ export default function ScheduleRightSection({ selectedDate }) {
   return (
     <div className="flex flex-col h-full w-full">
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <div className="w-full h-full rounded-3xl border border-gray-100 bg-white/70 backdrop-blur-lg shadow-2xl p-0 flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0f4ff 0%, #f8fafc 100%)' }}>
+        <div className="w-full h-full rounded-3xl border border-gray-100 bg-white/70 backdrop-blur-lg shadow-2xl p-0 flex flex-col relative overflow-hidden dark:border-gray-700 dark:bg-gray-800/70 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900">
           {/* Sticky Header */}
-          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-6 py-4 flex items-center justify-between shadow-sm">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-6 py-4 flex items-center justify-between shadow-sm dark:bg-gray-800/80 dark:border-gray-700">
             <div>
               {selectedDate && (
                 <>
-                  <h3 className="text-2xl font-bold text-gray-800">
+                  <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
                     {selectedDate.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}
                   </h3>
-                  <div className="text-sm text-gray-500 font-medium">
+                  <div className="text-sm text-gray-500 font-medium dark:text-gray-400">
                     {selectedDate.toLocaleDateString("en-US", { weekday: "long" })}
                   </div>
                 </>
@@ -609,7 +596,7 @@ export default function ScheduleRightSection({ selectedDate }) {
               {/* Time slots */}
               <div className="flex flex-col">
                 {TIME_SLOTS.map((slot, idx) => (
-                  <div key={slot} className="h-12 flex items-start justify-end pr-2 text-xs text-gray-400">
+                  <div key={slot} className="h-12 flex items-start justify-end pr-2 text-xs text-gray-400 dark:text-gray-500">
                     {slot}
                   </div>
                 ))}
@@ -619,7 +606,7 @@ export default function ScheduleRightSection({ selectedDate }) {
                 <div style={{ width: containerWidth, minWidth: '100%' }}>
                   {/* Time slot lines */}
                   {TIME_SLOTS.map((slot, idx) => (
-                    <div key={slot} className="h-12 border-t border-gray-200 w-full absolute left-0" style={{ top: `${idx * 48}px`, zIndex: 0 }} />
+                    <div key={slot} className="h-12 border-t border-gray-200 w-full absolute left-0 dark:border-gray-700" style={{ top: `${idx * 48}px`, zIndex: 0 }} />
                   ))}
                   {/* Meeting boxes */}
                   {meetings.map((meeting) => {
@@ -644,13 +631,16 @@ export default function ScheduleRightSection({ selectedDate }) {
                       >
                         {/* Tooltip on hover */}
                         {hoveredMeetingId === meeting.id && (
-                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-white/90 border border-blue-100 shadow-lg rounded-xl px-4 py-2 min-w-[180px] z-50 animate-fade-in pointer-events-none">
-                            <div className="font-semibold text-blue-900 text-sm mb-1 truncate">{meeting.title}</div>
-                            <div className="text-xs text-blue-600 mb-1">{meeting.start} - {meeting.end}</div>
-                            <div className="text-xs text-gray-500 truncate">{meeting.members?.map(m => m.name).join(', ')}</div>
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-white/90 border border-blue-100 shadow-lg rounded-xl px-4 py-2 min-w-[180px] z-50 animate-fade-in pointer-events-none dark:bg-gray-800/90 dark:border-gray-600">
+                            <div className="font-semibold text-blue-900 text-sm mb-1 truncate dark:text-blue-300">{meeting.title}</div>
+                            <div className="text-xs text-blue-600 mb-1 dark:text-blue-400">{meeting.start} - {meeting.end}</div>
+                            <div className="text-xs text-gray-500 truncate dark:text-gray-400">
+                              {meeting.assignee?.name}
+                              {meeting.cc_members?.length > 0 && `, ${meeting.cc_members.map(m => m.name).join(', ')}`}
+                            </div>
                           </div>
                         )}
-                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/70 shadow-inner mr-2">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/70 shadow-inner mr-2 dark:bg-gray-700/70">
                           {meeting.icon}
                         </div>
                         <div className="flex flex-col">
@@ -665,7 +655,7 @@ export default function ScheduleRightSection({ selectedDate }) {
             </div>
           </div>
           {/* Subtle background pattern */}
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 80% 20%, #c7d2fe22 0%, transparent 70%)' }} />
+          <div className="absolute inset-0 pointer-events-none bg-gradient-radial from-blue-200/10 to-transparent dark:from-gray-600/10" />
         </div>
         {/* Meeting Details Modal */}
         <DialogContent>
@@ -683,13 +673,13 @@ export default function ScheduleRightSection({ selectedDate }) {
               <DialogDescription>
                 <div className="flex items-center gap-2 mb-2">
                   <CalendarDays className="w-4 h-4 text-blue-500" />
-                  <span className="font-medium text-gray-700">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
                     {selectedMeeting.date ? new Date(selectedMeeting.date).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' }) : ''}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-4 h-4 text-blue-500" />
-                  <span className="font-medium text-gray-700">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
                     {mounted ? new Date(`${selectedMeeting.date}T${selectedMeeting.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     {' - '}
                     {mounted ? new Date(`${selectedMeeting.date}T${selectedMeeting.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -697,16 +687,46 @@ export default function ScheduleRightSection({ selectedDate }) {
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                   <User className="w-4 h-4 text-green-500" />
-                  <span className="text-gray-700">Created by: <span className="font-semibold">{selectedMeeting.created_by.name}</span></span>
+                  <span className="text-gray-700 dark:text-gray-300">Assignee: <span className="font-semibold">{selectedMeeting.assignee?.name || 'N/A'}</span></span>
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="w-4 h-4 text-purple-500" />
-                  <span className="text-gray-700">Members: {selectedMeeting.members.map(m => m.name).join(', ')}</span>
+                  <span className="text-gray-700 dark:text-gray-300">CC: {selectedMeeting.cc_members?.map(m => m.name).join(', ') || 'None'}</span>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-gray-700 dark:text-gray-300">Meeting Type: <span className="font-semibold">{selectedMeeting.meeting_type || 'N/A'}</span></span>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-gray-700 dark:text-gray-300">Department: <span className="font-semibold">{selectedMeeting.department_name || 'N/A'}</span></span>
                 </div>
                 <div className="flex items-start gap-2 mb-2">
                   <FileText className="w-4 h-4 text-gray-400 mt-1" />
-                  <span className="text-gray-700 whitespace-pre-line">{selectedMeeting.description}</span>
+                  <span className="text-gray-700 dark:text-gray-300 whitespace-pre-line">{selectedMeeting.description}</span>
                 </div>
+                {selectedMeeting.remarks && (
+                  <div className="flex items-start gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-orange-400 mt-1" />
+                    <span className="text-gray-700 dark:text-gray-300">Remarks: <span className="whitespace-pre-line">{selectedMeeting.remarks}</span></span>
+                  </div>
+                )}
+                {selectedMeeting.jd_link && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-green-400" />
+                    <span className="text-gray-700 dark:text-gray-300">Job Description: </span>
+                    <a href={selectedMeeting.jd_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline dark:text-blue-400 dark:hover:text-blue-300">
+                      View Link
+                    </a>
+                  </div>
+                )}
+                {selectedMeeting.resume_link && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-purple-400" />
+                    <span className="text-gray-700 dark:text-gray-300">Resume: </span>
+                    <a href={selectedMeeting.resume_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline dark:text-blue-400 dark:hover:text-blue-300">
+                      View Link
+                    </a>
+                  </div>
+                )}
               </DialogDescription>
               <DialogClose>
                 <Button variant="outline" className="mt-2 w-full">Close</Button>
@@ -717,7 +737,7 @@ export default function ScheduleRightSection({ selectedDate }) {
             <div>
               <DialogTitle className="flex items-center gap-2">
                 <input
-                  className="text-2xl font-bold mb-2 text-gray-800 bg-gray-100 rounded px-2 py-1 w-full"
+                  className="text-2xl font-bold mb-2 text-gray-800 bg-gray-100 rounded px-2 py-1 w-full dark:text-gray-100 dark:bg-gray-700"
                   value={editData.title}
                   onChange={e => handleEditChange('title', e.target.value)}
                 />
@@ -725,20 +745,20 @@ export default function ScheduleRightSection({ selectedDate }) {
               <DialogDescription>
                 <div className="flex gap-4 mb-2">
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Date</label>
                     <input
                       type="date"
-                      className="border rounded px-2 py-1 text-gray-700 w-full"
+                      className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       value={editData.date}
                       onChange={e => handleEditChange('date', e.target.value)}
                       required
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Start Time</label>
                     <input
                       type="time"
-                      className="border rounded px-2 py-1 text-gray-700 w-full"
+                      className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       value={editData.start_time}
                       onChange={e => handleEditChange('start_time', e.target.value)}
                       required
@@ -747,10 +767,10 @@ export default function ScheduleRightSection({ selectedDate }) {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">End Time</label>
                     <input
                       type="time"
-                      className="border rounded px-2 py-1 text-gray-700 w-full"
+                      className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       value={editData.end_time}
                       onChange={e => handleEditChange('end_time', e.target.value)}
                       required
@@ -759,41 +779,138 @@ export default function ScheduleRightSection({ selectedDate }) {
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="w-4 h-4 text-green-500" />
-                  <select
-                    className="border rounded px-2 py-1 text-gray-700"
-                    value={editData.created_by?.id || ''}
-                    onChange={e => handleEditChange('created_by', allUsers.find(u => u.id === Number(e.target.value)))}
-                  >
-                    <option value="" disabled>Select creator...</option>
-                    {allUsers.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
+                <div className="flex gap-4 mb-2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Meeting Type</label>
+                    <input
+                      className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                      value={editData.meeting_type || ''}
+                      onChange={e => handleEditChange('meeting_type', e.target.value)}
+                      placeholder="Enter meeting type (e.g. W2)"
+                      required
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Department</label>
+                    <select
+                      className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                      value={editData.department || ''}
+                      onChange={e => handleEditChange('department', e.target.value)}
+                      required
+                      disabled={allDepartments.length === 0}
+                    >
+                      <option value="">Select department...</option>
+                      {allDepartments.map(dep => (
+                        <option key={dep.id} value={dep.id}>{dep.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-purple-500" />
-                  <div className="flex flex-wrap gap-2">
-                    {allUsers.map(u => (
-                      <label key={u.id} className="flex items-center gap-1 text-xs bg-gray-100 rounded px-2 py-1 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={!!editData.members.find(m => m.id === u.id)}
-                          onChange={() => handleMembersChange(u.id)}
-                        />
-                        {u.name}
-                      </label>
+                <div className="mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Assignee</label>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none mb-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    value={editData.assignee?.id || ''}
+                    onChange={e => {
+                      const userId = Number(e.target.value);
+                      const user = closers.find(u => u.id === userId) || allUsers.find(u => u.id === userId);
+                      handleEditChange('assignee', user);
+                    }}
+                    required
+                    disabled={closers.length === 0}
+                  >
+                    <option value="">Select assignee...</option>
+                    {/* Include current assignee if not in closers */}
+                    {editData.assignee && !closers.some(u => u.id === editData.assignee.id) && (
+                      <option key={editData.assignee.id} value={editData.assignee.id}>
+                        {editData.assignee.name} (Current)
+                      </option>
+                    )}
+                    {closers
+                      .filter(u => !editData.cc_members?.some(m => m.id === u.id))
+                      .map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">CC Members</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {editData.cc_members?.map((m) => (
+                      <span key={m.id} className="flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-xs font-medium shadow-sm dark:bg-blue-900/30 dark:text-blue-300">
+                        {m.name}
+                        <button
+                          type="button"
+                          className="ml-1 text-blue-500 hover:text-blue-700 focus:outline-none dark:text-blue-400 dark:hover:text-blue-300"
+                          onClick={() => handleEditChange('cc_members', editData.cc_members.filter(mem => mem.id !== m.id))}
+                          aria-label={`Remove ${m.name}`}
+                        >
+                          ×
+                        </button>
+                      </span>
                     ))}
                   </div>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    value=""
+                    onChange={e => {
+                      const userId = Number(e.target.value);
+                      if (!userId) return;
+                      const user = allUsers.find(u => u.id === userId);
+                      if (user && !editData.cc_members?.some(m => m.id === user.id) && user.id !== editData.assignee?.id) {
+                        handleEditChange('cc_members', [...(editData.cc_members || []), user]);
+                      }
+                    }}
+                    disabled={allUsers.length === 0}
+                  >
+                    <option value="">Select CC member...</option>
+                    {allUsers
+                      .filter(u =>
+                        !(editData.cc_members || []).some(m => m.id === u.id) &&
+                        u.id !== editData.assignee?.id
+                      )
+                      .map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                  </select>
                 </div>
                 <div className="flex items-start gap-2 mb-2">
                   <FileText className="w-4 h-4 text-gray-400 mt-1" />
                   <textarea
-                    className="border rounded px-2 py-1 text-gray-700 w-full min-h-[60px]"
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     value={editData.description}
                     onChange={e => handleEditChange('description', e.target.value)}
+                    placeholder="Meeting description"
                   />
+                </div>
+                <div className="mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Remarks</label>
+                  <textarea
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    value={editData.remarks || ''}
+                    onChange={e => handleEditChange('remarks', e.target.value)}
+                    placeholder="General meeting remarks from any participant"
+                  />
+                </div>
+                <div className="flex gap-4 mb-2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Job Description Link</label>
+                    <input
+                      type="url"
+                      className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                      value={editData.jd_link || ''}
+                      onChange={e => handleEditChange('jd_link', e.target.value)}
+                      placeholder="https://example.com/job-description"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Resume Link</label>
+                    <input
+                      type="url"
+                      className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                      value={editData.resume_link || ''}
+                      onChange={e => handleEditChange('resume_link', e.target.value)}
+                      placeholder="https://example.com/resume"
+                    />
+                  </div>
                 </div>
               </DialogDescription>
               <div className="flex gap-2 mt-4">
@@ -813,18 +930,18 @@ export default function ScheduleRightSection({ selectedDate }) {
             <DialogTitle>Add New Meeting</DialogTitle>
             <form onSubmit={handleAddMeeting} className="flex flex-col gap-4 mt-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Title</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   value={addForm.title}
                   onChange={e => handleAddFormChange('title', e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Description</label>
                 <textarea
-                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px]"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   value={addForm.description}
                   onChange={e => handleAddFormChange('description', e.target.value)}
                   required
@@ -832,10 +949,10 @@ export default function ScheduleRightSection({ selectedDate }) {
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Date</label>
                   <input
                     type="date"
-                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     value={addForm.date}
                     onChange={e => handleAddFormChange('date', e.target.value)}
                     required
@@ -843,10 +960,10 @@ export default function ScheduleRightSection({ selectedDate }) {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Start Time</label>
                   <input
                     type="time"
-                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     value={addForm.start_time}
                     onChange={e => handleAddFormChange('start_time', e.target.value)}
                     required
@@ -855,10 +972,10 @@ export default function ScheduleRightSection({ selectedDate }) {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">End Time</label>
                   <input
                     type="time"
-                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     value={addForm.end_time}
                     onChange={e => handleAddFormChange('end_time', e.target.value)}
                     required
@@ -867,43 +984,134 @@ export default function ScheduleRightSection({ selectedDate }) {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Members</label>
-                {/* Selected members as chips */}
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {addForm.members.map((m) => (
-                    <span key={m.id} className="flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-xs font-medium shadow-sm">
-                      {m.name}
-                      <button
-                        type="button"
-                        className="ml-1 text-blue-500 hover:text-blue-700 focus:outline-none"
-                        onClick={() => handleAddFormChange('members', addForm.members.filter(mem => mem.id !== m.id))}
-                        aria-label={`Remove ${m.name}`}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Meeting Type</label>
+                  <input
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    value={addForm.meeting_type}
+                    onChange={e => handleAddFormChange('meeting_type', e.target.value)}
+                    placeholder="Enter meeting type (e.g. W2)"
+                    required
+                  />
                 </div>
-                {/* Select for unselected members */}
-                <select
-                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
-                  value=""
-                  onChange={e => {
-                    const userId = Number(e.target.value);
-                    if (!userId) return;
-                    const user = allUsers.find(u => u.id === userId);
-                    if (user && !addForm.members.some(m => m.id === user.id)) {
-                      handleAddFormChange('members', [...addForm.members, user]);
-                    }
-                  }}
-                  disabled={allUsers.length === 0}
-                >
-                  <option value="">Select member...</option>
-                  {allUsers.filter(u => !addForm.members.some(m => m.id === u.id)).map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Department</label>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    value={addForm.department}
+                    onChange={e => handleAddFormChange('department', e.target.value)}
+                    required
+                    disabled={allDepartments.length === 0}
+                  >
+                    <option value="">Select department...</option>
+                    {allDepartments.map(dep => (
+                      <option key={dep.id} value={dep.id}>{dep.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Assignee</label>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    value={addForm.assignee?.id || ''}
+                    onChange={e => {
+                      const userId = Number(e.target.value);
+                      const user = closers.find(u => u.id === userId);
+                      handleAddFormChange('assignee', user);
+                    }}
+                    required
+                    disabled={closers.length === 0}
+                  >
+                    <option value="">Select assignee...</option>
+                    {closers
+                      .filter(u => !addForm.cc_members.some(m => m.id === u.id))
+                      .map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">CC Members</label>
+                  {/* Selected CC members as chips */}
+                  <div className="flex flex-wrap gap-2 mb-2 min-h-[38px] border rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
+                    {addForm.cc_members.length === 0 ? (
+                      <span className="text-gray-400 text-sm self-center">No CC members selected</span>
+                    ) : (
+                      addForm.cc_members.map((m) => (
+                        <span key={m.id} className="flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-xs font-medium shadow-sm dark:bg-blue-900/30 dark:text-blue-300">
+                          {m.name}
+                          <button
+                            type="button"
+                            className="ml-1 text-blue-500 hover:text-blue-700 focus:outline-none dark:text-blue-400 dark:hover:text-blue-300"
+                            onClick={() => handleAddFormChange('cc_members', addForm.cc_members.filter(mem => mem.id !== m.id))}
+                            aria-label={`Remove ${m.name}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  {/* Select for unselected CC members (exclude assignee) */}
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    value=""
+                    onChange={e => {
+                      const userId = Number(e.target.value);
+                      if (!userId) return;
+                      const user = allUsers.find(u => u.id === userId);
+                      // Prevent assignee from being added to CC
+                      if (user && !addForm.cc_members.some(m => m.id === user.id) && user.id !== addForm.assignee?.id) {
+                        handleAddFormChange('cc_members', [...addForm.cc_members, user]);
+                      }
+                    }}
+                    disabled={allUsers.length === 0}
+                  >
+                    <option value="">Add CC member...</option>
+                    {allUsers
+                      .filter(u =>
+                        !addForm.cc_members.some(m => m.id === u.id) &&
+                        u.id !== addForm.assignee?.id
+                      )
+                      .map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Remarks</label>
+                <textarea
+                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  value={addForm.remarks}
+                  onChange={e => handleAddFormChange('remarks', e.target.value)}
+                  placeholder="General meeting remarks from any participant"
+                />
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Job Description Link</label>
+                  <input
+                    type="url"
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    value={addForm.jd_link}
+                    onChange={e => handleAddFormChange('jd_link', e.target.value)}
+                    placeholder="https://example.com/job-description"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Resume Link</label>
+                  <input
+                    type="url"
+                    className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    value={addForm.resume_link}
+                    onChange={e => handleAddFormChange('resume_link', e.target.value)}
+                    placeholder="https://example.com/resume"
+                  />
+                </div>
               </div>
               <div className="flex gap-2 mt-2">
                 <Button type="submit" variant="default" className="flex-1">Add Meeting</Button>

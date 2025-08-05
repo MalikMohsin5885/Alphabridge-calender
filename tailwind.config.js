@@ -10,6 +10,7 @@ module.exports = {
       "./app/**/*.{js,ts,jsx,tsx}",
       "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
     ],
+    darkMode: "class",
     theme: {
       extend: {},
     },

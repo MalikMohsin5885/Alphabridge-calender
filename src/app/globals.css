@@ -119,4 +119,70 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Smooth transitions for theme switching */
+  * {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  }
+  
+  /* Dark mode specific styles */
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
+  }
+  
+  /* Dialog dark mode background */
+  .dark {
+    --dialog-bg: linear-gradient(135deg, rgba(31,41,55,0.95) 60%, rgba(55,65,81,0.85) 100%);
+  }
+  
+  /* Form and input dark mode improvements */
+  .dark input[type="text"],
+  .dark input[type="email"],
+  .dark input[type="password"],
+  .dark input[type="date"],
+  .dark input[type="time"],
+  .dark textarea,
+  .dark select {
+    @apply bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400;
+  }
+  
+  .dark input[type="text"]:focus,
+  .dark input[type="email"]:focus,
+  .dark input[type="password"]:focus,
+  .dark input[type="date"]:focus,
+  .dark input[type="time"]:focus,
+  .dark textarea:focus,
+  .dark select:focus {
+    @apply border-blue-500 ring-blue-500/20;
+  }
+  
+  /* Ensure form containers have proper dark backgrounds */
+  .dark form {
+    @apply bg-transparent;
+  }
+  
+  /* Ensure proper contrast in dark mode */
+  .dark .bg-white {
+    @apply bg-gray-800;
+  }
+  
+  .dark .text-gray-900 {
+    @apply text-gray-100;
+  }
+  
+  .dark .text-gray-700 {
+    @apply text-gray-300;
+  }
+  
+  .dark .text-gray-500 {
+    @apply text-gray-400;
+  }
+  
+  .dark .border-gray-200 {
+    @apply border-gray-700;
+  }
+  
+  .dark .border-gray-100 {
+    @apply border-gray-800;
+  }
 }

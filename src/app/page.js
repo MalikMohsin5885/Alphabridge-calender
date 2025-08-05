@@ -7,7 +7,7 @@ export default function Home() {
       {/* Hero Section */}
       <header className="w-full max-w-5xl mx-auto flex flex-col items-center pt-20 pb-12 px-4">
         <div className="flex items-center gap-3 mb-4">
-          <img src="/images/the_alphabridge_logo.jpg" alt="Alphabridge Logo" className="h-12 w-12 rounded-lg shadow-lg" />
+          <img src="/images/the_alphabridge_logo.png" alt="Alphabridge Logo" className="h-12 w-12 rounded-lg shadow-lg" />
           <span className="text-3xl font-extrabold text-blue-700 tracking-tight">Alphabridge Meeting Calendar</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 text-center mb-4 drop-shadow-sm">
@@ -72,7 +72,7 @@ export default function Home() {
       <section className="w-full max-w-5xl mx-auto px-4 mb-20">
         <h2 className="text-2xl font-bold text-blue-800 mb-8 text-center">Preview</h2>
         <div className="flex flex-col items-center gap-8 sm:flex-row sm:justify-center">
-          <img src="/images/the_alphabridge_logo.jpg" alt="App Preview" className="rounded-2xl shadow-2xl border border-blue-100 w-64 h-64 object-contain bg-white" />
+          <img src="/images/the_alphabridge_logo.png" alt="App Preview" className="rounded-2xl shadow-2xl border border-blue-100 w-64 h-64 object-contain bg-white" />
           <div className="flex flex-col gap-4">
             <div className="bg-white/80 rounded-xl shadow p-4 border border-gray-100 max-w-xs">
               <span className="block text-blue-700 font-bold mb-1">Dashboard Analytics</span>

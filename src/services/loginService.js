@@ -5,25 +5,42 @@ const API_BASE_URL = 'http://127.0.0.1:8000'; // Replace with your backend URL
 import { fetchUserProfile } from './userService';
 
 export async function login(username, password) {
-  const response = await fetch(`http://127.0.0.1:8000/auth/login/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: username, password }),
-  });
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/auth/login/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: username, password }),
+    });
+    
+    // Get response text for error handling
+    const responseText = await response.text();
+    
+    if (!response.ok) {
+      // Log error for debugging but don't expose sensitive details
+      console.error('Login failed with status:', response.status);
+      throw new Error(`Login failed with status ${response.status}: ${responseText}`);
+    }
+    
+    // Parse successful response
+    const data = JSON.parse(responseText);
+    
+    localStorage.setItem('access_token', data.access);
+    localStorage.setItem('refresh_token', data.refresh);
 
-  if (!response.ok) {
-    throw new Error('Login failed');
+    // Immediately fetch and store user profile
+    const profile = await fetchUserProfile(data.access);
+    localStorage.setItem('user_info', JSON.stringify(profile));
+
+    return data;
+    
+  } catch (fetchError) {
+    // Log network errors for debugging
+    if (fetchError.message === 'Failed to fetch') {
+      console.error('Network error: Could not connect to server at http://127.0.0.1:8000');
+    }
+    
+    throw fetchError;
   }
-
-  const data = await response.json();
-  localStorage.setItem('access_token', data.access);
-  localStorage.setItem('refresh_token', data.refresh);
-
-  // Immediately fetch and store user profile
-  const profile = await fetchUserProfile(data.access);
-  localStorage.setItem('user_info', JSON.stringify(profile));
-
-  return data;
 }
 
 export function getAccessToken() {
