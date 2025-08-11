@@ -9,6 +9,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { Pencil } from "lucide-react";
 import { fetchDepartmentsAndUsers } from "../../../services/departmentService";
 import { fetchAllUsers, addUser, updateUser } from "../../../services/userService";
@@ -23,6 +25,7 @@ export default function AddUserPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     role: '',
     department: '',
     supervisor: '',
@@ -31,7 +34,9 @@ export default function AddUserPage() {
   });
   const [editFormData, setEditFormData] = useState({
     name: '',
+    role: '',
     department: '',
+    supervisor: '',
     priority: '',
     is_active: true
   });
@@ -83,6 +88,7 @@ export default function AddUserPage() {
       setFormData({
         name: '',
         email: '',
+        password: '',
         role: '',
         department: '',
         supervisor: '',
@@ -90,9 +96,10 @@ export default function AddUserPage() {
         priority: ''
       });
       setDialogOpen(false);
+      toast.success('User added successfully!');
     } catch (error) {
       console.error('Failed to add user:', error);
-      alert('Failed to add user. Please try again.');
+      toast.error('Failed to add user. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -103,7 +110,14 @@ export default function AddUserPage() {
     setEditing(true);
     
     try {
-      await updateUser(editingUser.id, editFormData);
+      await updateUser(editingUser.id, {
+        name: editFormData.name,
+        role: editFormData.role,
+        department: editFormData.department,
+        supervisor: editFormData.supervisor,
+        priority: editFormData.priority,
+        is_active: editFormData.is_active
+      });
       
       // Refresh the users list
       const usersData = await fetchAllUsers();
@@ -112,15 +126,18 @@ export default function AddUserPage() {
       // Reset form and close dialog
       setEditFormData({
         name: '',
+        role: '',
         department: '',
+        supervisor: '',
         priority: '',
         is_active: true
       });
       setEditingUser(null);
       setEditDialogOpen(false);
+      toast.success('User updated successfully!');
     } catch (error) {
       console.error('Failed to update user:', error);
-      alert('Failed to update user. Please try again.');
+      toast.error('Failed to update user. Please try again.');
     } finally {
       setEditing(false);
     }
@@ -130,7 +147,9 @@ export default function AddUserPage() {
     setEditingUser(user);
     setEditFormData({
       name: user.name || '',
+      role: user.role || '',
       department: user.department || '',
+      supervisor: user.supervisor || '',
       priority: user.priority || '',
       is_active: user.is_active ?? true
     });
@@ -150,9 +169,10 @@ export default function AddUserPage() {
       // Refresh the users list
       const usersData = await fetchAllUsers();
       setUsers(usersData || []);
+      toast.success(`User status updated to ${newStatus ? 'Active' : 'Inactive'}!`);
     } catch (error) {
       console.error('Failed to update user status:', error);
-      alert('Failed to update user status. Please try again.');
+      toast.error('Failed to update user status. Please try again.');
     }
   };
 
@@ -190,7 +210,7 @@ export default function AddUserPage() {
           <DialogTrigger>
             <Button variant="default" size="lg" className="shadow-md">+ Add User</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogTitle>Register New User</DialogTitle>
             <DialogDescription>Fill in the details to add a new user.</DialogDescription>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -213,6 +233,17 @@ export default function AddUserPage() {
                   placeholder="Enter email"
                   value={formData.email}
                   onChange={(e) => handleFormChange('email', e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                <input 
+                  type="password" 
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400" 
+                  placeholder="Enter password"
+                  value={formData.password}
+                  onChange={(e) => handleFormChange('password', e.target.value)}
                   required
                 />
               </div>
@@ -323,16 +354,45 @@ export default function AddUserPage() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+              <select 
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                value={editFormData.role || ''}
+                onChange={(e) => handleEditFormChange('role', Number(e.target.value))}
+                required
+              >
+                <option value="">Select role...</option>
+                <option value="1">Supervisor</option>
+                <option value="2">BD Supervisor</option>
+                <option value="3">BD</option>
+                <option value="4">Closer</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
-                              <select 
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                  value={editFormData.department || ''}
-                  onChange={(e) => handleEditFormChange('department', Number(e.target.value))}
-                  required
-                >
+              <select 
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                value={editFormData.department || ''}
+                onChange={(e) => handleEditFormChange('department', Number(e.target.value))}
+                required
+              >
                 <option value="">Select department...</option>
                 {departments.map(dep => (
                   <option key={dep.id} value={dep.id}>{dep.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supervisor</label>
+              <select 
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                value={editFormData.supervisor || ''}
+                onChange={(e) => handleEditFormChange('supervisor', Number(e.target.value))}
+                required
+              >
+                <option value="">Select supervisor...</option>
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>{user.name}</option>
                 ))}
               </select>
             </div>
@@ -380,6 +440,8 @@ export default function AddUserPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Toaster />
 
       <div className="overflow-x-auto rounded-2xl shadow-xl bg-white/80 backdrop-blur border border-blue-100 dark:bg-gray-800/80 dark:border-gray-700">
         <table className="min-w-full text-sm text-left">

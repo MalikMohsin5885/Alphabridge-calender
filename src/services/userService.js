@@ -43,14 +43,26 @@ export const fetchAllUsers = async () => {
 
 // Add a new user
 export const addUser = async (userData) => {
-  const response = await fetch(`${API_BASE_URL}/users/`, {
+  // Transform the data to match the API payload structure
+  const payload = {
+    name: userData.name,
+    email: userData.email,
+    password: userData.password || 'defaultPassword123', // You might want to add password field to the form
+    role_id: userData.role,
+    department_id: userData.department,
+    supervisor_id: userData.supervisor,
+    priority: userData.priority
+  };
+
+  const response = await fetch(`${API_AUTH_URL}/register/`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify(userData),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to add user');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to register user');
   }
 
   return response.json();

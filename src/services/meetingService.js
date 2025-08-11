@@ -44,7 +44,7 @@ export const addMeeting = async (meetingData) => {
     meeting_type: meetingData.meeting_type,
     department: meetingData.department,
     to_id: meetingData.assignee?.id,
-    cc_ids: meetingData.cc_members.map(m => m.id),
+    cc_ids: (meetingData.cc_members || []).map(m => m.id),
     remarks: meetingData.remarks || '',
     jd_link: meetingData.jd_link || '',
     resume_link: meetingData.resume_link || '',
@@ -75,19 +75,22 @@ export const editMeeting = async (meetingId, meetingData) => {
     department: meetingData.department,
     to_id: meetingData.assignee?.id,
     cc_ids: (meetingData.cc_members || []).map(m => m.id),
-    remarks: meetingData.remarks || '',
     jd_link: meetingData.jd_link || '',
     resume_link: meetingData.resume_link || '',
   };
 
-  const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/`, {
+  console.log('Edit meeting payload:', payload); // Debug log
+  
+  const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/edit`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to update meeting');
+    const errorText = await response.text();
+    console.error('Edit meeting error response:', errorText);
+    throw new Error(`Failed to update meeting: ${response.status} ${response.statusText}`);
   }
 
   return response.json();

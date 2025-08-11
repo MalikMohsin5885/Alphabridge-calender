@@ -5,185 +5,28 @@ import { Plus, CalendarDays, User, Users, Clock, FileText, Pencil, X, Check } fr
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogTitle,
   DialogDescription,
   DialogClose,
 } from '@/components/ui/dialog';
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { useUser } from '../context/UserContext';
 import { fetchMeetings, addMeeting, editMeeting } from '../services/meetingService';
 import { fetchDepartmentsAndUsers } from '../services/departmentService';
-
-const TIME_SLOTS = (() => {
-  const slots = [];
-  let hour = 17; // 5 PM
-  let minute = 0;
-  while (!(hour === 2 && minute === 30)) {
-    const h = hour % 24;
-    slots.push(`${h.toString().padStart(2, '0')}:${minute === 0 ? '00' : '30'}`);
-    if (minute === 0) {
-      minute = 30;
-    } else {
-      minute = 0;
-      hour = (hour + 1) % 24;
-    }
-    // Stop at 2:00 AM
-    if (h === 2 && minute === 0) break;
-  }
-  return slots;
-})();
-
-const MEETING_BOX_WIDTH = 200; // px
-const MEETING_BOX_GAP = 16; // px
+import MeetingBox from '@/components/schedule/MeetingBox';
+import {
+  TIME_SLOTS,
+  MEETING_BOX_WIDTH,
+  MEETING_BOX_GAP,
+  getSlotIndex,
+  groupOverlappingMeetings,
+  calculateMeetingLayout,
+  getTodayDateString,
+} from '@/lib/scheduleUtils';
 
 // Users will be fetched from the API
-
-const initialMeetings = [
-  {
-    id: 1,
-    title: 'Team Sync',
-    description: 'Daily team sync to discuss progress and blockers.',
-    start: '19:30',
-    end: '20:30',
-    start_time: '2025-06-12T09:30:00',
-    end_time: '2025-06-12T10:30:00',
-    created_by: { id: 101, name: 'Ahmed Ali' },
-    members: [
-      { id: 101, name: 'Ahmed Ali' },
-      { id: 102, name: 'Sara Khan' },
-    ],
-    color: 'from-blue-200 to-blue-100',
-    text: 'text-blue-900',
-    icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
-  },
-  {
-    id: 2,
-    title: 'Client Call',
-    description: 'Call with client to review project milestones.',
-    start: '18:00',
-    end: '20:30',
-    start_time: '2025-06-12T11:00:00',
-    end_time: '2025-06-12T12:30:00',
-    created_by: { id: 102, name: 'Sara Khan' },
-    members: [
-      { id: 102, name: 'Sara Khan' },
-      { id: 103, name: 'John Doe' },
-    ],
-    color: 'from-pink-200 to-pink-100',
-    text: 'text-pink-900',
-    icon: <CalendarDays className="w-5 h-5 text-pink-500" />,
-  },
-  {
-    id: 3,
-    title: 'Design Review',
-    description: 'Review new design proposals and give feedback.',
-    start: '00:30',
-    end: '01:30',
-    start_time: '2025-06-12T09:30:00',
-    end_time: '2025-06-12T10:30:00',
-    created_by: { id: 103, name: 'John Doe' },
-    members: [
-      { id: 101, name: 'Ahmed Ali' },
-      { id: 103, name: 'John Doe' },
-    ],
-    color: 'from-green-200 to-green-100',
-    text: 'text-green-900',
-    icon: <CalendarDays className="w-5 h-5 text-green-500" />,
-  },
-  {
-    id: 4,
-    title: 'Planning Meeting',
-    description: 'Sprint planning and task assignment.',
-    start: '00:30',
-    end: '01:30',
-    start_time: '2025-06-12T11:30:00',
-    end_time: '2025-06-12T12:30:00',
-    created_by: { id: 101, name: 'Ahmed Ali' },
-    members: [
-      { id: 101, name: 'Ahmed Ali' },
-      { id: 104, name: 'Emily Smith' },
-    ],
-    color: 'from-yellow-200 to-yellow-100',
-    text: 'text-yellow-900',
-    icon: <CalendarDays className="w-5 h-5 text-yellow-500" />,
-  },
-  {
-    id: 5,
-    title: 'Daily Standup',
-    description: 'Quick daily standup for all team members.',
-    start: '20:00',
-    end: '21:00',
-    start_time: '2025-06-12T10:00:00',
-    end_time: '2025-06-12T11:00:00',
-    created_by: { id: 104, name: 'Emily Smith' },
-    members: [
-      { id: 101, name: 'Ahmed Ali' },
-      { id: 104, name: 'Emily Smith' },
-    ],
-    color: 'from-purple-200 to-purple-100',
-    text: 'text-purple-900',
-    icon: <CalendarDays className="w-5 h-5 text-purple-500" />,
-  },
-];
-
-// Helper to get slot index from time string (now starting at 17:00)
-const getSlotIndex = (time) => {
-  const [h, m] = time.split(':').map(Number);
-  // Calculate the slot index based on 17:00 as the start
-  let hour = h;
-  // If hour is less than 5 (AM), treat as next day (e.g., 1 AM = 25)
-  if (hour < 5) hour += 24;
-  const base = 17; // 17:00 is slot 0
-  return (hour - base) * 2 + (m === 30 ? 1 : 0);
-};
-
-const meetingsOverlap = (meeting1, meeting2) => {
-  const start1 = getSlotIndex(meeting1.start);
-  const end1 = getSlotIndex(meeting1.end);
-  const start2 = getSlotIndex(meeting2.start);
-  const end2 = getSlotIndex(meeting2.end);
-  return start1 < end2 && start2 < end1;
-};
-
-const groupOverlappingMeetings = (allMeetings) => {
-  const groups = [];
-  const processed = new Set();
-  allMeetings.forEach(meeting => {
-    if (processed.has(meeting.id)) return;
-    const group = [meeting];
-    processed.add(meeting.id);
-    let foundNew = true;
-    while (foundNew) {
-      foundNew = false;
-      allMeetings.forEach(otherMeeting => {
-        if (processed.has(otherMeeting.id)) return;
-        const overlapsWithGroup = group.some(groupMeeting => meetingsOverlap(groupMeeting, otherMeeting));
-        if (overlapsWithGroup) {
-          group.push(otherMeeting);
-          processed.add(otherMeeting.id);
-          foundNew = true;
-        }
-      });
-    }
-    groups.push(group);
-  });
-  return groups;
-};
-
-const calculateMeetingLayout = (meeting, allMeetings) => {
-  const groups = groupOverlappingMeetings(allMeetings);
-  const meetingGroup = groups.find(group => group.some(m => m.id === meeting.id));
-  if (!meetingGroup) {
-    return { left: 0, width: MEETING_BOX_WIDTH };
-  }
-  meetingGroup.sort((a, b) => getSlotIndex(a.start) - getSlotIndex(b.start));
-  const position = meetingGroup.findIndex(m => m.id === meeting.id);
-  const totalOverlapping = meetingGroup.length;
-  const width = MEETING_BOX_WIDTH;
-  const left = position * (MEETING_BOX_WIDTH + MEETING_BOX_GAP);
-  return { left, width, totalOverlapping };
-};
 
 export default function ScheduleRightSection({ selectedDate }) {
   const { user } = useUser();
@@ -208,7 +51,6 @@ export default function ScheduleRightSection({ selectedDate }) {
     department: '', // department ID
     assignee: null, // main person
     cc_members: [], // array of users
-    remarks: '', // general meeting remarks
     jd_link: '', // job description link
     resume_link: '', // resume link
   });
@@ -271,11 +113,11 @@ export default function ScheduleRightSection({ selectedDate }) {
             const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
             const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
 
-            // Extract assignee (the participant with is_to: true)
-            const assignee = meeting.participants?.find(p => p.is_to)?.user || null;
+            // Extract assignee from to_participant
+            const assignee = meeting.to_participant?.user || null;
             
-            // Extract CC members (participants with is_to: false)
-            const ccMembers = meeting.participants?.filter(p => !p.is_to).map(p => p.user) || [];
+            // Extract CC members from other_participants
+            const ccMembers = meeting.other_participants?.map(p => p.user) || [];
 
             return {
               ...meeting,
@@ -320,7 +162,13 @@ export default function ScheduleRightSection({ selectedDate }) {
   // Handle edit button
   const startEdit = () => {
     setEditMode(true);
-    setEditData({ ...selectedMeeting });
+    // Map the display format back to edit format
+    setEditData({
+      ...selectedMeeting,
+      // Ensure we have the correct time format for editing (HH:mm)
+      start_time: selectedMeeting.start_time ? selectedMeeting.start_time.substring(0, 5) : selectedMeeting.start,
+      end_time: selectedMeeting.end_time ? selectedMeeting.end_time.substring(0, 5) : selectedMeeting.end,
+    });
   };
 
   // Handle cancel edit
@@ -333,7 +181,7 @@ export default function ScheduleRightSection({ selectedDate }) {
   const handleEditMeeting = async () => {
     // Validation (reuse add meeting validation logic if needed)
     if (!editData.title || !editData.description || !editData.date || !editData.start_time || !editData.end_time || !editData.assignee) {
-      alert('Please fill all fields and select an assignee.');
+      toast.error('Please fill all fields and select an assignee.');
       return;
     }
     // Only allow times from 17:00 to 23:59 or 00:00 to 02:00
@@ -343,7 +191,7 @@ export default function ScheduleRightSection({ selectedDate }) {
       return (h >= 17 && h <= 23) || (h >= 0 && h <= 2);
     }
     if (!isAllowedTimeRange(editData.start_time) || !isAllowedTimeRange(editData.end_time)) {
-      alert('Meetings can only be scheduled between 5:00 PM and 2:00 AM.');
+      toast.error('Meetings can only be scheduled between 5:00 PM and 2:00 AM.');
       return;
     }
     // If date is today, start and end time must be after current time
@@ -355,16 +203,17 @@ export default function ScheduleRightSection({ selectedDate }) {
       const [startH, startM] = editData.start_time.split(':').map(Number);
       const [endH, endM] = editData.end_time.split(':').map(Number);
       if (startH < nowH || (startH === nowH && startM <= nowM)) {
-        alert('Start time must be after the current time.');
+        toast.error('Start time must be after the current time.');
         return;
       }
       if (endH < nowH || (endH === nowH && endM <= nowM)) {
-        alert('End time must be after the current time.');
+        toast.error('End time must be after the current time.');
         return;
       }
     }
 
     try {
+      console.log('Editing meeting with data:', editData); // Debug log
       await editMeeting(editData.id, editData);
       
       // Refetch meetings for the selected date
@@ -386,11 +235,11 @@ export default function ScheduleRightSection({ selectedDate }) {
           const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
           const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
 
-          // Extract assignee (the participant with is_to: true)
-          const assignee = meeting.participants?.find(p => p.is_to)?.user || null;
+          // Extract assignee from to_participant
+          const assignee = meeting.to_participant?.user || null;
           
-          // Extract CC members (participants with is_to: false)
-          const ccMembers = meeting.participants?.filter(p => !p.is_to).map(p => p.user) || [];
+          // Extract CC members from other_participants
+          const ccMembers = meeting.other_participants?.map(p => p.user) || [];
 
           return {
             ...meeting,
@@ -424,7 +273,8 @@ export default function ScheduleRightSection({ selectedDate }) {
       setModalOpen(false);
     } catch (err) {
       console.error('Failed to update meeting:', err);
-      alert('Failed to update meeting.');
+      console.error('Error details:', err.message);
+      toast.error(`Failed to update meeting: ${err.message}`);
     }
   };
 
@@ -475,7 +325,7 @@ export default function ScheduleRightSection({ selectedDate }) {
     
     // Prevent selecting a date before today
     if (addForm.date < getTodayDateString()) {
-      alert('You cannot select a date before today.');
+      toast.error('You cannot select a date before today.');
       return;
     }
     // If date is today, start and end time must be after current time
@@ -488,12 +338,12 @@ export default function ScheduleRightSection({ selectedDate }) {
       const [endH, endM] = addForm.end_time.split(':').map(Number);
       // Check start time
       if (startH < nowH || (startH === nowH && startM <= nowM)) {
-        alert('Start time must be after the current time.');
+        toast.error('Start time must be after the current time.');
         return;
       }
       // Check end time
       if (endH < nowH || (endH === nowH && endM <= nowM)) {
-        alert('End time must be after the current time.');
+        toast.error('End time must be after the current time.');
         return;
       }
     }
@@ -519,11 +369,11 @@ export default function ScheduleRightSection({ selectedDate }) {
           const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
           const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
 
-          // Extract assignee (the participant with is_to: true)
-          const assignee = meeting.participants?.find(p => p.is_to)?.user || null;
+          // Extract assignee from to_participant
+          const assignee = meeting.to_participant?.user || null;
           
-          // Extract CC members (participants with is_to: false)
-          const ccMembers = meeting.participants?.filter(p => !p.is_to).map(p => p.user) || [];
+          // Extract CC members from other_participants
+          const ccMembers = meeting.other_participants?.map(p => p.user) || [];
 
           return {
             ...meeting,
@@ -554,13 +404,13 @@ export default function ScheduleRightSection({ selectedDate }) {
         department: '',
         assignee: allUsers[0] || null,
         cc_members: [],
-        remarks: '',
         jd_link: '',
         resume_link: '',
       });
+      toast.success('Meeting created successfully!');
     } catch (err) {
       console.error('Failed to add meeting:', err);
-      alert('Failed to add meeting.');
+      toast.error('Failed to add meeting.');
     }
   };
 
@@ -782,20 +632,24 @@ export default function ScheduleRightSection({ selectedDate }) {
                 <div className="flex gap-4 mb-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Meeting Type</label>
-                    <input
+                    <select
                       className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       value={editData.meeting_type || ''}
                       onChange={e => handleEditChange('meeting_type', e.target.value)}
-                      placeholder="Enter meeting type (e.g. W2)"
                       required
-                    />
+                    >
+                      <option value="">Select meeting type...</option>
+                      <option value="W2">W2 (Permanent)</option>
+                      <option value="10.99">10.99 (Contract)</option>
+                      <option value="C2C">C2C (Contract)</option>
+                    </select>
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Department</label>
                     <select
                       className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       value={editData.department || ''}
-                      onChange={e => handleEditChange('department', e.target.value)}
+                      onChange={e => handleEditChange('department', Number(e.target.value))}
                       required
                       disabled={allDepartments.length === 0}
                     >
@@ -926,7 +780,7 @@ export default function ScheduleRightSection({ selectedDate }) {
         </DialogContent>
         {/* Add Meeting Modal */}
         <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-          <DialogContent>
+          <DialogContent className="max-h-[80vh] overflow-y-auto">
             <DialogTitle>Add New Meeting</DialogTitle>
             <form onSubmit={handleAddMeeting} className="flex flex-col gap-4 mt-2">
               <div>
@@ -987,20 +841,24 @@ export default function ScheduleRightSection({ selectedDate }) {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Meeting Type</label>
-                  <input
+                  <select
                     className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     value={addForm.meeting_type}
                     onChange={e => handleAddFormChange('meeting_type', e.target.value)}
-                    placeholder="Enter meeting type (e.g. W2)"
                     required
-                  />
+                  >
+                    <option value="">Select meeting type...</option>
+                    <option value="W2">W2 (Permanent)</option>
+                    <option value="10.99">10.99 (Contract)</option>
+                    <option value="C2C">C2C (Contract)</option>
+                  </select>
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Department</label>
                   <select
                     className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     value={addForm.department}
-                    onChange={e => handleAddFormChange('department', e.target.value)}
+                    onChange={e => handleAddFormChange('department', Number(e.target.value))}
                     required
                     disabled={allDepartments.length === 0}
                   >
@@ -1082,15 +940,7 @@ export default function ScheduleRightSection({ selectedDate }) {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Remarks</label>
-                <textarea
-                  className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                  value={addForm.remarks}
-                  onChange={e => handleAddFormChange('remarks', e.target.value)}
-                  placeholder="General meeting remarks from any participant"
-                />
-              </div>
+
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Job Description Link</label>
@@ -1121,6 +971,7 @@ export default function ScheduleRightSection({ selectedDate }) {
           </DialogContent>
         </Dialog>
       </Dialog>
+      <Toaster />
     </div>
   );
 }
