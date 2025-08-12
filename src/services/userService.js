@@ -83,3 +83,16 @@ export const updateUser = async (userId, userData) => {
   return response.json();
 }; 
 
+// Fetch roles, departments, and supervisors from the new API endpoint
+export const fetchRolesDepartmentsSupervisors = async () => {
+  const response = await fetch(`${API_BASE_URL}/roles-departments-supervisors/`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch roles, departments, and supervisors');
+  }
+
+  return response.json();
+}; 
+

@@ -15,7 +15,7 @@ export default function MeetingBox({
 }) {
   return (
     <div
-      className={`absolute rounded-2xl border border-gray-200 p-4 shadow-lg bg-gradient-to-br ${meeting.color} ${meeting.text} transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl flex items-center gap-3 cursor-pointer`}
+      className={`absolute rounded-2xl border border-gray-200 p-4 shadow-lg bg-gradient-to-br ${meeting.color} transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl flex items-center gap-3 cursor-pointer`}
       style={{
         top,
         height: height - 10,
@@ -39,12 +39,15 @@ export default function MeetingBox({
           </div>
         </div>
       )}
-      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/70 shadow-inner mr-2 dark:bg-gray-700/70">
+      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/70 shadow-inner mr-2 dark:bg-gray-700/70 flex-shrink-0">
         {meeting.icon}
       </div>
-      <div className="flex flex-col">
-        <div className="font-bold truncate mb-1 text-base leading-tight">{meeting.title}</div>
-        <div className="text-xs opacity-80 font-medium">{meeting.start} - {meeting.end}</div>
+      <div className="flex flex-col flex-1 min-w-0">
+        <div className="font-bold truncate mb-1 text-base leading-tight text-blue-900 dark:text-blue-900 max-w-full">{meeting.title}</div>
+        <div className="text-xs opacity-80 font-medium text-blue-800 dark:text-blue-800">
+          <div className="truncate">{meeting.start}</div>
+          <div className="truncate">{meeting.end}</div>
+        </div>
       </div>
     </div>
   );

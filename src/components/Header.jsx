@@ -72,7 +72,7 @@ export default function Header() {
       <nav className="flex gap-1 bg-white/40 rounded-full px-2 py-1 shadow-sm border border-blue-100/40 backdrop-blur-sm dark:bg-gray-800/40 dark:border-gray-700/40">
         <a
           href="/dashboard"
-          className={`flex items-center gap-1 font-medium transition rounded-full px-3 py-1 text-sm
+          className={`flex items-center gap-1 font-medium transition rounded-full px-3 py-1 text-sm whitespace-nowrap
             ${isHome
               ? "bg-blue-600 text-white shadow border-blue-600"
               : "bg-white/0 text-blue-700 border border-transparent hover:text-blue-600 hover:bg-blue-50 focus:bg-blue-100 focus:text-blue-700"}
@@ -83,7 +83,7 @@ export default function Header() {
         </a>
         <a
           href="/dashboard/schedule"
-          className={`flex items-center gap-1 font-medium transition rounded-full px-3 py-1 text-sm
+          className={`flex items-center gap-1 font-medium transition rounded-full px-3 py-1 text-sm whitespace-nowrap
             ${isSchedule
               ? "bg-blue-600 text-white shadow border-blue-600"
               : "bg-white/0 text-blue-700 border border-transparent hover:text-blue-600 hover:bg-blue-50 focus:bg-blue-100 focus:text-blue-700"}
@@ -97,25 +97,23 @@ export default function Header() {
           <>
             <a
               href="/dashboard/add-user"
-              className={`flex items-center gap-1 font-medium transition rounded-full px-3 py-1 text-sm
+              className={`flex items-center gap-1 font-medium transition rounded-full px-3 py-1 text-sm whitespace-nowrap
                 ${isAddUser
                   ? "bg-blue-600 text-white shadow border-blue-600"
                   : "bg-white/0 text-blue-700 border border-transparent hover:text-blue-600 hover:bg-blue-50 focus:bg-blue-100 focus:text-blue-700"}
               `}
             >
-              <span className="w-4 h-4 inline-block">+</span>
               Add User
             </a>
             <a
               href="/dashboard/add-role"
-              className={`flex items-center gap-1 font-medium transition rounded-full px-3 py-1 text-sm
+              className={`flex items-center gap-1 font-medium transition rounded-full px-3 py-1 text-sm whitespace-nowrap
                 ${isAddRole
                   ? "bg-blue-600 text-white shadow border-blue-600"
                   : "bg-white/0 text-blue-700 border border-transparent hover:text-blue-600 hover:bg-blue-50 focus:bg-blue-100 focus:text-blue-700"}
               `}
             >
-              <span className="w-4 h-4 inline-block">+</span>
-              Add Role
+              Edit Permissions
             </a>
           </>
         )}
@@ -167,6 +165,26 @@ export default function Header() {
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400">Role</span>
                     <div className="text-blue-700 text-base font-medium capitalize dark:text-blue-400">{user?.role || "No role"}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Department</span>
+                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.department?.name || "No department"}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Supervisor</span>
+                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.supervisor?.name || "No supervisor"}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Status</span>
+                    <div className={`text-base font-medium capitalize ${
+                      user?.status === 'active' 
+                        ? 'text-green-600 dark:text-green-400' 
+                        : user?.status === 'inactive' 
+                        ? 'text-red-600 dark:text-red-400' 
+                        : 'text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {user?.status || "Unknown"}
+                    </div>
                   </div>
                 </div>
               </div>

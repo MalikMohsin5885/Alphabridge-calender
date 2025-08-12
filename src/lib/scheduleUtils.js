@@ -1,5 +1,7 @@
 'use client';
 
+import moment from 'moment-timezone';
+
 // Schedule utilities and layout helpers
 
 export const TIME_SLOTS = (() => {
@@ -8,7 +10,9 @@ export const TIME_SLOTS = (() => {
   let minute = 0;
   while (!(hour === 2 && minute === 30)) {
     const h = hour % 24;
-    slots.push(`${h.toString().padStart(2, '0')}:${minute === 0 ? '00' : '30'}`);
+    const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    slots.push(`${displayHour}:${minute === 0 ? '00' : '30'} ${ampm}`);
     if (minute === 0) {
       minute = 30;
     } else {
@@ -86,4 +90,89 @@ export function getTodayDateString() {
   const dd = String(today.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
+
+// Convert PKT time to EST using moment-timezone (always EST, not EDT)
+export const convertToEastern = (time, date) => {
+  if (!time || !date) return '';
+  
+  try {
+    // Parse the time and create a moment object in PKT timezone
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    // Ensure the date is in the correct format
+    const formattedDate = moment(date).format('YYYY-MM-DD');
+    
+    // Create the date string in PKT timezone
+    const pkDateTime = moment.tz(`${formattedDate} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`, 'Asia/Karachi');
+    
+    // Convert to EST (Eastern Standard Time, GMT-5) - always use EST, not EDT
+    const estDateTime = pkDateTime.clone().tz('America/New_York').utcOffset(-5);
+    
+    // Format in 12-hour format
+    return estDateTime.format('h:mm A');
+  } catch (error) {
+    console.error('Error converting timezone:', error);
+    return '';
+  }
+};
+
+// Convert PKT time to EST for time slots (always EST, not EDT)
+export const convertSlotToEastern = (slot) => {
+  if (!slot) return '';
+  
+  try {
+    // Parse the 12-hour format time
+    const [time, ampm] = slot.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    // Convert to 24-hour format
+    let hour24 = hours;
+    if (ampm === 'PM' && hours !== 12) hour24 += 12;
+    if (ampm === 'AM' && hours === 12) hour24 = 0;
+    
+    // Create moment object in PKT timezone (using today's date for conversion)
+    const today = moment().format('YYYY-MM-DD');
+    const pkDateTime = moment.tz(`${today} ${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`, 'Asia/Karachi');
+    
+    // Convert to EST (always GMT-5)
+    const estDateTime = pkDateTime.clone().tz('America/New_York').utcOffset(-5);
+    
+    // Format in 12-hour format
+    return estDateTime.format('h:mm A');
+  } catch (error) {
+    console.error('Error converting slot timezone:', error);
+    return '';
+  }
+};
+
+// Always return EST (Eastern Standard Time)
+export const getEasternTimezoneAbbr = () => {
+  return 'EST';
+};
+
+// Debug function to test timezone conversion
+export const debugTimezoneConversion = () => {
+  const testDate = '2025-01-15';
+  const testTime = '17:00'; // 5:00 PM
+  
+  console.log('Testing timezone conversion:');
+  console.log('PKT time:', testTime);
+  console.log('Test date:', testDate);
+  
+  const pkDateTime = moment.tz(`${testDate} ${testTime}:00`, 'Asia/Karachi');
+  console.log('PKT moment:', pkDateTime.format('YYYY-MM-DD HH:mm:ss Z'));
+  
+  const estDateTime = pkDateTime.clone().tz('America/New_York');
+  console.log('EST moment:', estDateTime.format('YYYY-MM-DD HH:mm:ss Z'));
+  
+  console.log('PKT to EST:', convertToEastern(testTime, testDate));
+  
+  // Test with current date
+  const currentDate = moment().format('YYYY-MM-DD');
+  console.log('Current date test:', currentDate);
+  console.log('Current date PKT to EST:', convertToEastern(testTime, currentDate));
+  
+  // Test manual calculation
+  console.log('Manual calculation: PKT 17:00 should be EST 07:00 (10 hours difference)');
+};
 

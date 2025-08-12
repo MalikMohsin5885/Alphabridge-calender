@@ -12,12 +12,14 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Pencil } from "lucide-react";
-import { fetchDepartmentsAndUsers } from "../../../services/departmentService";
-import { fetchAllUsers, addUser, updateUser } from "../../../services/userService";
+import { fetchAllUsers, addUser, updateUser, fetchRolesDepartmentsSupervisors } from "../../../services/userService";
+import withPrivateRoute from "../../../components/withPrivateRoute";
 
-export default function AddUserPage() {
+function AddUserPage() {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -46,17 +48,37 @@ export default function AddUserPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Fetch departments
-        const deptData = await fetchDepartmentsAndUsers();
-        setDepartments(deptData.departments || []);
+        // Fetch roles, departments, and supervisors from the new API
+        const data = await fetchRolesDepartmentsSupervisors();
+        console.log('Fetched data:', data);
+        console.log('Roles:', data.roles);
+        console.log('Departments:', data.departments);
+        console.log('Supervisors:', data.supervisors);
         
-        // Fetch users from the new API
+        setRoles(data.roles || []);
+        setDepartments(data.departments || []);
+        setSupervisors(data.supervisors || []);
+        
+        // Log if any data is missing
+        if (!data.roles || data.roles.length === 0) {
+          console.warn('No roles found in API response');
+        }
+        if (!data.departments || data.departments.length === 0) {
+          console.warn('No departments found in API response');
+        }
+        if (!data.supervisors || data.supervisors.length === 0) {
+          console.warn('No supervisors found in API response');
+        }
+        
+        // Fetch users from the existing API
         const usersData = await fetchAllUsers();
         setUsers(usersData || []);
       } catch (error) {
         console.error('Failed to fetch data:', error);
         setUsers([]);
         setDepartments([]);
+        setRoles([]);
+        setSupervisors([]);
       } finally {
         setLoading(false);
       }
@@ -185,13 +207,16 @@ export default function AddUserPage() {
 
   // Helper function to get role name by ID
   const getRoleName = (roleId) => {
-    const roleMap = {
-      1: 'Supervisor',
-      2: 'BD Supervisor',
-      3: 'BD',
-      4: 'Closer'
-    };
-    return roleMap[roleId] || `Role ${roleId}`;
+    if (!roleId || !Array.isArray(roles)) return 'N/A';
+    const role = roles.find(r => r.id === roleId);
+    return role ? role.name : `Role ${roleId}`;
+  };
+
+  // Helper function to get supervisor name by ID
+  const getSupervisorName = (supervisorId) => {
+    if (!supervisorId || !Array.isArray(supervisors)) return 'N/A';
+    const supervisor = supervisors.find(s => s.id === supervisorId);
+    return supervisor ? supervisor.name : `User ${supervisorId}`;
   };
 
   if (loading) {
@@ -214,6 +239,11 @@ export default function AddUserPage() {
             <DialogTitle>Register New User</DialogTitle>
             <DialogDescription>Fill in the details to add a new user.</DialogDescription>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {loading && (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-4">
+                  Loading form data...
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
                 <input 
@@ -248,47 +278,79 @@ export default function AddUserPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Role
+                  {roles.length === 0 && !loading && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </label>
                 <select 
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   value={formData.role}
                   onChange={(e) => handleFormChange('role', Number(e.target.value))}
                   required
+                  disabled={roles.length === 0}
                 >
-                  <option value="">Select role...</option>
-                  <option value="1">Supervisor</option>
-                  <option value="2">BD Supervisor</option>
-                  <option value="3">BD</option>
-                  <option value="4">Closer</option>
+                  <option value="">
+                    {roles.length === 0 ? 'Loading roles...' : 'Select role...'}
+                  </option>
+                  {roles.map(role => (
+                    <option key={role.id} value={role.id}>{role.name}</option>
+                  ))}
                 </select>
+                {roles.length === 0 && !loading && (
+                  <p className="text-xs text-red-500 mt-1">No roles available</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Department
+                  {departments.length === 0 && !loading && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </label>
                 <select 
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   value={formData.department}
                   onChange={(e) => handleFormChange('department', Number(e.target.value))}
                   required
+                  disabled={departments.length === 0}
                 >
-                  <option value="">Select department...</option>
+                  <option value="">
+                    {departments.length === 0 ? 'Loading departments...' : 'Select department...'}
+                  </option>
                   {departments.map(dep => (
                     <option key={dep.id} value={dep.id}>{dep.name}</option>
                   ))}
                 </select>
+                {departments.length === 0 && !loading && (
+                  <p className="text-xs text-red-500 mt-1">No departments available</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supervisor</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Supervisor
+                  {supervisors.length === 0 && !loading && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </label>
                 <select 
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   value={formData.supervisor}
                   onChange={(e) => handleFormChange('supervisor', Number(e.target.value))}
                   required
+                  disabled={supervisors.length === 0}
                 >
-                  <option value="">Select supervisor...</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.id}>{user.name}</option>
+                  <option value="">
+                    {supervisors.length === 0 ? 'Loading supervisors...' : 'Select supervisor...'}
+                  </option>
+                  {supervisors.map(supervisor => (
+                    <option key={supervisor.id} value={supervisor.id}>{supervisor.name}</option>
                   ))}
                 </select>
+                {supervisors.length === 0 && !loading && (
+                  <p className="text-xs text-red-500 mt-1">No supervisors available</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
@@ -342,6 +404,11 @@ export default function AddUserPage() {
           <DialogTitle>Edit User</DialogTitle>
           <DialogDescription>Update user details.</DialogDescription>
           <form onSubmit={handleEditSubmit} className="space-y-4">
+            {loading && (
+              <div className="text-center text-gray-500 dark:text-gray-400 py-4">
+                Loading form data...
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
               <input 
@@ -354,47 +421,79 @@ export default function AddUserPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Role
+                {roles.length === 0 && !loading && (
+                  <span className="text-red-500 ml-1">*</span>
+                )}
+              </label>
               <select 
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 value={editFormData.role || ''}
                 onChange={(e) => handleEditFormChange('role', Number(e.target.value))}
                 required
+                disabled={roles.length === 0}
               >
-                <option value="">Select role...</option>
-                <option value="1">Supervisor</option>
-                <option value="2">BD Supervisor</option>
-                <option value="3">BD</option>
-                <option value="4">Closer</option>
+                <option value="">
+                  {roles.length === 0 ? 'Loading roles...' : 'Select role...'}
+                </option>
+                {roles.map(role => (
+                  <option key={role.id} value={role.id}>{role.name}</option>
+                ))}
               </select>
+              {roles.length === 0 && !loading && (
+                <p className="text-xs text-red-500 mt-1">No roles available</p>
+              )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Department
+                {departments.length === 0 && !loading && (
+                  <span className="text-red-500 ml-1">*</span>
+                )}
+              </label>
               <select 
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 value={editFormData.department || ''}
                 onChange={(e) => handleEditFormChange('department', Number(e.target.value))}
                 required
+                disabled={departments.length === 0}
               >
-                <option value="">Select department...</option>
+                <option value="">
+                  {departments.length === 0 ? 'Loading departments...' : 'Select department...'}
+                </option>
                 {departments.map(dep => (
                   <option key={dep.id} value={dep.id}>{dep.name}</option>
                 ))}
               </select>
+              {departments.length === 0 && !loading && (
+                <p className="text-xs text-red-500 mt-1">No departments available</p>
+              )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supervisor</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Supervisor
+                {supervisors.length === 0 && !loading && (
+                  <span className="text-red-500 ml-1">*</span>
+                )}
+              </label>
               <select 
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 value={editFormData.supervisor || ''}
                 onChange={(e) => handleEditFormChange('supervisor', Number(e.target.value))}
                 required
+                disabled={supervisors.length === 0}
               >
-                <option value="">Select supervisor...</option>
-                {users.map(user => (
-                  <option key={user.id} value={user.id}>{user.name}</option>
+                <option value="">
+                  {supervisors.length === 0 ? 'Loading supervisors...' : 'Select supervisor...'}
+                </option>
+                {supervisors.map(supervisor => (
+                  <option key={supervisor.id} value={supervisor.id}>{supervisor.name}</option>
                 ))}
               </select>
+              {supervisors.length === 0 && !loading && (
+                <p className="text-xs text-red-500 mt-1">No supervisors available</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
@@ -479,7 +578,7 @@ export default function AddUserPage() {
                   <td className="px-6 py-4 text-blue-800 dark:text-blue-400 font-semibold">{getRoleName(user.role)}</td>
                   <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{getDepartmentName(user.department)}</td>
                   <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                    {user.supervisor ? users.find(u => u.id === user.supervisor)?.name || `User ${user.supervisor}` : '-'}
+                    {getSupervisorName(user.supervisor)}
                   </td>
                   <td className="px-6 py-4">
                     <button
@@ -514,3 +613,5 @@ export default function AddUserPage() {
     </div>
   );
 }
+
+export default withPrivateRoute(AddUserPage);

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Pencil, Save, X } from "lucide-react";
 import { useUser } from '../../../context/UserContext';
 import { useRouter } from 'next/navigation';
+import withPrivateRoute from '../../../components/withPrivateRoute';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
@@ -22,7 +23,7 @@ const getAuthHeaders = () => {
   };
 };
 
-export default function AddRolePage() {
+function AddRolePage() {
   const { user, loading } = useUser();
   const router = useRouter();
   
@@ -190,9 +191,7 @@ export default function AddRolePage() {
           <h1 className="text-3xl font-extrabold text-blue-900 tracking-tight dark:text-blue-300 mb-2">
             Role Management
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Select a role to view and manage its permissions
-          </p>
+
         </div>
 
         {/* Role Selection */}
@@ -335,4 +334,6 @@ export default function AddRolePage() {
       </div>
     </div>
   );
-} 
+}
+
+export default withPrivateRoute(AddRolePage);

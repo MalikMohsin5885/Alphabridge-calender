@@ -75,6 +75,7 @@ export const editMeeting = async (meetingId, meetingData) => {
     department: meetingData.department,
     to_id: meetingData.assignee?.id,
     cc_ids: (meetingData.cc_members || []).map(m => m.id),
+    remarks: meetingData.remarks || '',
     jd_link: meetingData.jd_link || '',
     resume_link: meetingData.resume_link || '',
   };
@@ -91,6 +92,23 @@ export const editMeeting = async (meetingId, meetingData) => {
     const errorText = await response.text();
     console.error('Edit meeting error response:', errorText);
     throw new Error(`Failed to update meeting: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}; 
+
+// Update meeting remarks
+export const updateMeetingRemarks = async (meetingId, remarks) => {
+  const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/remarks/`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ remarks }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Update remarks error response:', errorText);
+    throw new Error(`Failed to update meeting remarks: ${response.status} ${response.statusText}`);
   }
 
   return response.json();

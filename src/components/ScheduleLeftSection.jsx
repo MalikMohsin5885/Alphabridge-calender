@@ -11,7 +11,7 @@ export default function ScheduleLeftSection({ selectedDate, setSelectedDate }) {
       </div>
       {/* Bottom Section - 30% */}
       <div className="flex-[4]">
-        <ScheduleLeftBottomBox />
+        <ScheduleLeftBottomBox selectedDate={selectedDate} />
       </div>
     </div>
   );
