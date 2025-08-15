@@ -12,14 +12,14 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Pencil } from "lucide-react";
-import { fetchAllUsers, addUser, updateUser, fetchRolesDepartmentsSupervisors } from "../../../services/userService";
+import { fetchAllUsers, addUser, updateUser, fetchRolesDepartmentsAdministrators } from "../../../services/userService";
 import withPrivateRoute from "../../../components/withPrivateRoute";
 
 function AddUserPage() {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
-  const [supervisors, setSupervisors] = useState([]);
+  const [administrators, setAdministrators] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -30,7 +30,7 @@ function AddUserPage() {
     password: '',
     role: '',
     department: '',
-    supervisor: '',
+    administrator: '',
     is_active: true,
     priority: ''
   });
@@ -38,7 +38,7 @@ function AddUserPage() {
     name: '',
     role: '',
     department: '',
-    supervisor: '',
+    administrator: '',
     priority: '',
     is_active: true
   });
@@ -48,16 +48,16 @@ function AddUserPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Fetch roles, departments, and supervisors from the new API
-        const data = await fetchRolesDepartmentsSupervisors();
+        // Fetch roles, departments, and administrators from the new API
+        const data = await fetchRolesDepartmentsAdministrators();
         console.log('Fetched data:', data);
         console.log('Roles:', data.roles);
         console.log('Departments:', data.departments);
-        console.log('Supervisors:', data.supervisors);
+        console.log('Administrators:', data.supervisors);
         
         setRoles(data.roles || []);
         setDepartments(data.departments || []);
-        setSupervisors(data.supervisors || []);
+        setAdministrators(data.supervisors || []);
         
         // Log if any data is missing
         if (!data.roles || data.roles.length === 0) {
@@ -67,7 +67,7 @@ function AddUserPage() {
           console.warn('No departments found in API response');
         }
         if (!data.supervisors || data.supervisors.length === 0) {
-          console.warn('No supervisors found in API response');
+          console.warn('No administrators found in API response');
         }
         
         // Fetch users from the existing API
@@ -78,7 +78,7 @@ function AddUserPage() {
         setUsers([]);
         setDepartments([]);
         setRoles([]);
-        setSupervisors([]);
+        setAdministrators([]);
       } finally {
         setLoading(false);
       }
@@ -113,7 +113,7 @@ function AddUserPage() {
         password: '',
         role: '',
         department: '',
-        supervisor: '',
+        administrator: '',
         is_active: true,
         priority: ''
       });
@@ -136,7 +136,7 @@ function AddUserPage() {
         name: editFormData.name,
         role: editFormData.role,
         department: editFormData.department,
-        supervisor: editFormData.supervisor,
+        supervisor: editFormData.administrator,
         priority: editFormData.priority,
         is_active: editFormData.is_active
       });
@@ -150,7 +150,7 @@ function AddUserPage() {
         name: '',
         role: '',
         department: '',
-        supervisor: '',
+        administrator: '',
         priority: '',
         is_active: true
       });
@@ -171,7 +171,7 @@ function AddUserPage() {
       name: user.name || '',
       role: user.role || '',
       department: user.department || '',
-      supervisor: user.supervisor || '',
+      administrator: user.supervisor || '',
       priority: user.priority || '',
       is_active: user.is_active ?? true
     });
@@ -212,11 +212,11 @@ function AddUserPage() {
     return role ? role.name : `Role ${roleId}`;
   };
 
-  // Helper function to get supervisor name by ID
-  const getSupervisorName = (supervisorId) => {
-    if (!supervisorId || !Array.isArray(supervisors)) return 'N/A';
-    const supervisor = supervisors.find(s => s.id === supervisorId);
-    return supervisor ? supervisor.name : `User ${supervisorId}`;
+  // Helper function to get administrator name by ID
+  const getAdministratorName = (administratorId) => {
+    if (!administratorId || !Array.isArray(administrators)) return 'N/A';
+    const administrator = administrators.find(s => s.id === administratorId);
+    return administrator ? administrator.name : `User ${administratorId}`;
   };
 
   if (loading) {
@@ -329,27 +329,27 @@ function AddUserPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Supervisor
-                  {supervisors.length === 0 && !loading && (
+                  Administrator
+                  {administrators.length === 0 && !loading && (
                     <span className="text-red-500 ml-1">*</span>
                   )}
                 </label>
                 <select 
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                  value={formData.supervisor}
-                  onChange={(e) => handleFormChange('supervisor', Number(e.target.value))}
+                  value={formData.administrator}
+                  onChange={(e) => handleFormChange('administrator', Number(e.target.value))}
                   required
-                  disabled={supervisors.length === 0}
+                  disabled={administrators.length === 0}
                 >
                   <option value="">
-                    {supervisors.length === 0 ? 'Loading supervisors...' : 'Select supervisor...'}
+                    {administrators.length === 0 ? 'Loading administrators...' : 'Select administrator...'}
                   </option>
-                  {supervisors.map(supervisor => (
-                    <option key={supervisor.id} value={supervisor.id}>{supervisor.name}</option>
+                  {administrators.map(administrator => (
+                    <option key={administrator.id} value={administrator.id}>{administrator.name}</option>
                   ))}
                 </select>
-                {supervisors.length === 0 && !loading && (
-                  <p className="text-xs text-red-500 mt-1">No supervisors available</p>
+                {administrators.length === 0 && !loading && (
+                  <p className="text-xs text-red-500 mt-1">No administrators available</p>
                 )}
               </div>
               <div>
@@ -472,27 +472,27 @@ function AddUserPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Supervisor
-                {supervisors.length === 0 && !loading && (
+                Administrator
+                {administrators.length === 0 && !loading && (
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </label>
               <select 
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                value={editFormData.supervisor || ''}
-                onChange={(e) => handleEditFormChange('supervisor', Number(e.target.value))}
+                value={editFormData.administrator || ''}
+                onChange={(e) => handleEditFormChange('administrator', Number(e.target.value))}
                 required
-                disabled={supervisors.length === 0}
+                disabled={administrators.length === 0}
               >
                 <option value="">
-                  {supervisors.length === 0 ? 'Loading supervisors...' : 'Select supervisor...'}
+                  {administrators.length === 0 ? 'Loading administrators...' : 'Select administrator...'}
                 </option>
-                {supervisors.map(supervisor => (
-                  <option key={supervisor.id} value={supervisor.id}>{supervisor.name}</option>
+                {administrators.map(administrator => (
+                  <option key={administrator.id} value={administrator.id}>{administrator.name}</option>
                 ))}
               </select>
-              {supervisors.length === 0 && !loading && (
-                <p className="text-xs text-red-500 mt-1">No supervisors available</p>
+              {administrators.length === 0 && !loading && (
+                <p className="text-xs text-red-500 mt-1">No administrators available</p>
               )}
             </div>
             <div>
@@ -550,7 +550,7 @@ function AddUserPage() {
               <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">Email</th>
               <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">Role</th>
               <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">Department</th>
-              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">Supervisor</th>
+              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">Administrator</th>
               <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">Status</th>
               <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">Priority</th>
               <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">Actions</th>
@@ -578,7 +578,7 @@ function AddUserPage() {
                   <td className="px-6 py-4 text-blue-800 dark:text-blue-400 font-semibold">{getRoleName(user.role)}</td>
                   <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{getDepartmentName(user.department)}</td>
                   <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                    {getSupervisorName(user.supervisor)}
+                    {getAdministratorName(user.supervisor)}
                   </td>
                   <td className="px-6 py-4">
                     <button

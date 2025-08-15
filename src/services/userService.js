@@ -50,7 +50,7 @@ export const addUser = async (userData) => {
     password: userData.password || 'defaultPassword123', // You might want to add password field to the form
     role_id: userData.role,
     department_id: userData.department,
-    supervisor_id: userData.supervisor,
+    supervisor_id: userData.administrator,
     priority: userData.priority
   };
 
@@ -83,16 +83,17 @@ export const updateUser = async (userId, userData) => {
   return response.json();
 }; 
 
-// Fetch roles, departments, and supervisors from the new API endpoint
-export const fetchRolesDepartmentsSupervisors = async () => {
+// Fetch roles, departments, and administrators from the new API endpoint
+export const fetchRolesDepartmentsAdministrators = async () => {
   const response = await fetch(`${API_BASE_URL}/roles-departments-supervisors/`, {
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch roles, departments, and supervisors');
+    throw new Error('Failed to fetch roles, departments, and administrators');
   }
 
   return response.json();
 }; 
+
 

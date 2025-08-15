@@ -73,7 +73,10 @@ export default function ScheduleRightSection({ selectedDate }) {
         setAllUsers(Array.isArray(data.all_users) ? data.all_users : []);
         setClosers(Array.isArray(data.closers) ? data.closers : []);
         setAllDepartments(Array.isArray(data.departments) ? data.departments : []);
-        setAddForm(prev => ({ ...prev, assignee: (Array.isArray(data.closers) && data.closers[0]) || null }));
+        setAddForm(prev => ({ 
+          ...prev, 
+          assignee: user?.role === 'BD' ? null : ((Array.isArray(data.closers) && data.closers[0]) || null) 
+        }));
         
         console.log('Set departments:', Array.isArray(data.departments) ? data.departments : []);
       } catch (err) {
@@ -165,6 +168,9 @@ export default function ScheduleRightSection({ selectedDate }) {
             // Extract CC members from other_participants
             const ccMembers = meeting.other_participants?.map(p => p.user) || [];
 
+            // Check if current user is the assignee
+            const isMyMeeting = assignee?.id === user?.id;
+            
             return {
               ...meeting,
               start,
@@ -177,8 +183,9 @@ export default function ScheduleRightSection({ selectedDate }) {
               remarks: meeting.remarks || '',
               jd_link: meeting.jd_link || '',
               resume_link: meeting.resume_link || '',
-              color: 'from-blue-200 to-blue-100',
-              icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
+              color: isMyMeeting ? 'from-cyan-400 to-cyan-300' : 'from-blue-200 to-blue-100',
+              icon: <CalendarDays className={`w-5 h-5 ${isMyMeeting ? 'text-white' : 'text-blue-500'}`} />,
+              isMyMeeting,
             };
           });
         console.log('Mapped meetings:', mappedMeetings); // Debug log
@@ -206,14 +213,17 @@ export default function ScheduleRightSection({ selectedDate }) {
 
   // Handle edit button
   const startEdit = () => {
+    console.log('startEdit called, selectedMeeting:', selectedMeeting);
     setEditMode(true);
     // Map the display format back to edit format
-    setEditData({
+    const editDataToSet = {
       ...selectedMeeting,
       // Ensure we have the correct time format for editing (HH:mm)
-      start_time: selectedMeeting.start_time ? selectedMeeting.start_time.substring(0, 5) : selectedMeeting.start,
-      end_time: selectedMeeting.end_time ? selectedMeeting.end_time.substring(0, 5) : selectedMeeting.end,
-    });
+      start_time: selectedMeeting.start_time ? selectedMeeting.start_time.substring(0, 5) : selectedMeeting.start?.split(' ')[0],
+      end_time: selectedMeeting.end_time ? selectedMeeting.end_time.substring(0, 5) : selectedMeeting.end?.split(' ')[0],
+    };
+    console.log('Setting editData:', editDataToSet);
+    setEditData(editDataToSet);
   };
 
   // Handle cancel edit
@@ -290,6 +300,9 @@ export default function ScheduleRightSection({ selectedDate }) {
           // Extract CC members from other_participants
           const ccMembers = meeting.other_participants?.map(p => p.user) || [];
 
+          // Check if current user is the assignee
+          const isMyMeeting = assignee?.id === user?.id;
+          
           return {
             ...meeting,
             start,
@@ -302,8 +315,9 @@ export default function ScheduleRightSection({ selectedDate }) {
             remarks: meeting.remarks || '',
             jd_link: meeting.jd_link || '',
             resume_link: meeting.resume_link || '',
-            color: 'from-blue-200 to-blue-100',
-            icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
+            color: isMyMeeting ? 'from-cyan-400 to-cyan-300' : 'from-blue-200 to-blue-100',
+            icon: <CalendarDays className={`w-5 h-5 ${isMyMeeting ? 'text-white' : 'text-blue-500'}`} />,
+            isMyMeeting,
           };
         });
       console.log('Mapped meetings after edit:', mappedMeetings);
@@ -475,6 +489,9 @@ export default function ScheduleRightSection({ selectedDate }) {
           // Extract CC members from other_participants
           const ccMembers = meeting.other_participants?.map(p => p.user) || [];
 
+          // Check if current user is the assignee
+          const isMyMeeting = assignee?.id === user?.id;
+          
           return {
             ...meeting,
             start,
@@ -487,8 +504,9 @@ export default function ScheduleRightSection({ selectedDate }) {
             remarks: meeting.remarks || '',
             jd_link: meeting.jd_link || '',
             resume_link: meeting.resume_link || '',
-            color: 'from-blue-100 to-blue-50',
-            icon: <CalendarDays className="w-5 h-5 text-blue-500" />,
+            color: isMyMeeting ? 'from-cyan-400 to-cyan-300' : 'from-blue-200 to-blue-100',
+            icon: <CalendarDays className={`w-5 h-5 ${isMyMeeting ? 'text-white' : 'text-blue-500'}`} />,
+            isMyMeeting,
           };
         });
       setMeetings(mappedMeetings);
@@ -501,7 +519,7 @@ export default function ScheduleRightSection({ selectedDate }) {
         end_time: '',
         meeting_type: '',
         department: '',
-        assignee: allUsers[0] || null,
+        assignee: user?.role === 'BD' ? null : (allUsers[0] || null),
         cc_members: [],
         jd_link: '',
         resume_link: '',
@@ -610,63 +628,202 @@ export default function ScheduleRightSection({ selectedDate }) {
           <div className="absolute inset-0 pointer-events-none bg-gradient-radial from-blue-200/10 to-transparent dark:from-gray-600/10" />
         </div>
         {/* Meeting Details Modal */}
-        <DialogContent>
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 border-0 shadow-2xl">
           {selectedMeeting && !editMode && (
-            <div>
-              <DialogTitle className="flex items-center gap-2">
-                {selectedMeeting.title}
-                {/* Only show edit button if user is not a Member or Closer */}
-                {user?.role !== 'Member' && user?.role !== 'Closer' && (
-                  <Button size="icon" variant="ghost" className="ml-2" onClick={startEdit} aria-label="Edit meeting">
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                )}
-              </DialogTitle>
-              <DialogDescription>
-                <div className="flex items-center gap-2 mb-2">
-                  <CalendarDays className="w-4 h-4 text-blue-500" />
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    {selectedMeeting.date ? new Date(selectedMeeting.date).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' }) : ''}
-                  </span>
+            <div className="relative">
+              {/* Decorative background elements */}
+              <div className="absolute top-0 left-0 w-20 h-20 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-xl"></div>
+              <div className="absolute top-10 right-10 w-16 h-16 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-xl"></div>
+              
+              {/* Header */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                      <CalendarDays className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="truncate">{selectedMeeting.title}</span>
+                      {selectedMeeting.assignee?.id === user?.id && (
+                        <span className="inline-flex items-center gap-1 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-full px-2 py-1 text-xs font-medium">
+                          <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                          Your Meeting
+                        </span>
+                      )}
+                    </div>
+                  </DialogTitle>
+                  {/* Only show edit button if user is not a Member or Closer */}
+                  {user?.role !== 'Member' && user?.role !== 'Closer' && (
+                    <Button size="icon" variant="ghost" className="hover:bg-blue-100 dark:hover:bg-blue-900/30" onClick={startEdit} aria-label="Edit meeting">
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-blue-500" />
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    PKT: {mounted ? new Date(`${selectedMeeting.date}T${selectedMeeting.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+              </div>
+
+              {/* Three Card Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                
+                {/* Card 1: Schedule Details */}
+                <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-2xl p-4 border border-blue-200/50 dark:border-blue-700/50 shadow-lg">
+                  <div className="text-center mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <Clock className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="text-base font-bold text-blue-800 dark:text-blue-300">Schedule Details</h3>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="bg-white/70 dark:bg-gray-700/70 rounded-xl p-3 text-center">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date</div>
+                      <div className="text-base font-bold text-gray-800 dark:text-gray-200">
+                        {selectedMeeting.date ? new Date(selectedMeeting.date).toLocaleDateString([], { 
+                          weekday: 'short',
+                          month: 'short', 
+                          day: 'numeric' 
+                        }) : 'N/A'}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {selectedMeeting.date ? new Date(selectedMeeting.date).toLocaleDateString([], { 
+                          year: 'numeric' 
+                        }) : ''}
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white/70 dark:bg-gray-700/70 rounded-xl p-3 text-center">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Time (PKT)</div>
+                      <div className="text-base font-bold text-gray-800 dark:text-gray-200">
+                        {mounted ? new Date(`${selectedMeeting.date}T${selectedMeeting.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     {' - '}
                     {mounted ? new Date(`${selectedMeeting.date}T${selectedMeeting.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                    <span className="text-sm text-gray-500 ml-2">
-                      ({getEasternTimezoneAbbr()}: {convertToEastern(selectedMeeting.start, selectedMeeting.date)} - {convertToEastern(selectedMeeting.end, selectedMeeting.date)})
-                    </span>
-                  </span>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {getEasternTimezoneAbbr()}: {convertToEastern(selectedMeeting.start, selectedMeeting.date)} - {convertToEastern(selectedMeeting.end, selectedMeeting.date)}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="w-4 h-4 text-green-500" />
-                  <span className="text-gray-700 dark:text-gray-300">Assignee: <span className="font-semibold">{selectedMeeting.assignee?.name || 'N/A'}</span></span>
+
+                {/* Card 2: Meeting Details */}
+                <div className="bg-gradient-to-br from-green-100 to-emerald-200 dark:from-green-900/30 dark:to-emerald-800/30 rounded-2xl p-4 border border-green-200/50 dark:border-green-700/50 shadow-lg">
+                  <div className="text-center mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <CalendarDays className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="text-base font-bold text-green-800 dark:text-green-300">Meeting Details</h3>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="bg-white/70 dark:bg-gray-700/70 rounded-xl p-3">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Lead Type</div>
+                      <div className="text-base font-bold text-gray-800 dark:text-gray-200">{selectedMeeting.meeting_type || 'N/A'}</div>
+                    </div>
+                    
+                    <div className="bg-white/70 dark:bg-gray-700/70 rounded-xl p-3">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Department</div>
+                      <div className="text-base font-bold text-gray-800 dark:text-gray-200">{selectedMeeting.department_name || 'N/A'}</div>
+                    </div>
+                    
+                    <div className="bg-white/70 dark:bg-gray-700/70 rounded-xl p-3">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Created by</div>
+                      <div className="text-base font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                        {selectedMeeting.created_by?.name || 'N/A'}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-purple-500" />
-                  <span className="text-gray-700 dark:text-gray-300">CC: {selectedMeeting.cc_members?.map(m => m.name).join(', ') || 'None'}</span>
+
+                {/* Card 3: Participants & Other Details */}
+                <div className="bg-gradient-to-br from-purple-100 to-pink-200 dark:from-purple-900/30 dark:to-pink-800/30 rounded-2xl p-4 border border-purple-200/50 dark:border-purple-700/50 shadow-lg">
+                  <div className="text-center mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <Users className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="text-base font-bold text-purple-800 dark:text-purple-300">Participants & More</h3>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="bg-white/70 dark:bg-gray-700/70 rounded-xl p-3">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary Assignee</div>
+                      <div className="text-base font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        {selectedMeeting.assignee?.name || 'N/A'}
+
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white/70 dark:bg-gray-700/70 rounded-xl p-3">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">CC Members</div>
+                      <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                        {selectedMeeting.cc_members?.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {selectedMeeting.cc_members.map((m, index) => (
+                              <span key={m.id} className="inline-flex items-center gap-1 bg-gradient-to-r from-pink-100 to-purple-100 text-pink-800 rounded-full px-2 py-1 text-xs font-medium dark:from-pink-900/30 dark:to-purple-900/30 dark:text-pink-300">
+                                <div className="w-1.5 h-1.5 bg-pink-500 rounded-full"></div>
+                                {m.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 dark:text-gray-400">None</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {(selectedMeeting.jd_link || selectedMeeting.resume_link) && (
+                      <div className="bg-white/70 dark:bg-gray-700/70 rounded-xl p-3">
+                        <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Resources</div>
+                        <div className="space-y-2">
+                          {selectedMeeting.jd_link && (
+                            <a 
+                              href={selectedMeeting.jd_link} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="block text-purple-600 hover:text-purple-800 underline font-medium dark:text-purple-400 dark:hover:text-purple-300 text-sm"
+                            >
+                              📄 Job Description
+                            </a>
+                          )}
+                          {selectedMeeting.resume_link && (
+                            <a 
+                              href={selectedMeeting.resume_link} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="block text-purple-600 hover:text-purple-800 underline font-medium dark:text-purple-400 dark:hover:text-purple-300 text-sm"
+                            >
+                              📋 Resume
+                            </a>
+                          )}
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-gray-700 dark:text-gray-300">Meeting Type: <span className="font-semibold">{selectedMeeting.meeting_type || 'N/A'}</span></span>
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-gray-700 dark:text-gray-300">Department: <span className="font-semibold">{selectedMeeting.department_name || 'N/A'}</span></span>
+                    )}
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span className="text-gray-700 dark:text-gray-300">Created by: <span className="font-semibold">{selectedMeeting.created_by?.name || 'N/A'}</span></span>
                 </div>
-                <div className="flex items-start gap-2 mb-2">
-                  <FileText className="w-4 h-4 text-gray-400 mt-1" />
-                  <span className="text-gray-700 dark:text-gray-300 whitespace-pre-line">{selectedMeeting.description}</span>
+              </div>
+
+              {/* Description & Remarks Section */}
+              <div className="space-y-4">
+                {/* Description */}
+                <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100/50 dark:border-gray-700/50">
+                  <label className="block text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    Description
+                  </label>
+                  <div className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-4">
+                    <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                      {selectedMeeting.description || 'No description provided.'}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-start gap-2 mb-2">
-                  <FileText className="w-4 h-4 text-orange-400 mt-1" />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-gray-700 dark:text-gray-300 font-medium">Remarks:</span>
+                
+                {/* Remarks Section */}
+                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-yellow-500" />
+                      Meeting Remarks
+                    </label>
                       {!remarksEditMode && (user?.role === 'Member' || user?.role === 'Closer') && (
                         <Button 
                           size="sm" 
@@ -680,9 +837,9 @@ export default function ScheduleRightSection({ selectedDate }) {
                       )}
                     </div>
                     {remarksEditMode ? (
-                      <div className="space-y-2">
+                    <div className="space-y-3">
                         <textarea
-                          className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[80px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                        className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
                           value={remarksText}
                           onChange={(e) => setRemarksText(e.target.value)}
                           placeholder="Enter meeting remarks..."
@@ -693,7 +850,7 @@ export default function ScheduleRightSection({ selectedDate }) {
                             variant="default" 
                             onClick={handleSaveRemarks}
                             disabled={savingRemarks}
-                            className="flex items-center gap-1"
+                          className="flex items-center gap-1 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
                           >
                             {savingRemarks ? (
                               <>
@@ -718,37 +875,29 @@ export default function ScheduleRightSection({ selectedDate }) {
                         </div>
                       </div>
                     ) : (
-                      <span className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                    <div className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-4">
+                      <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
                         {selectedMeeting.remarks || 'No remarks added yet.'}
-                      </span>
-                    )}
                   </div>
-                </div>
-                {selectedMeeting.jd_link && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-green-400" />
-                    <span className="text-gray-700 dark:text-gray-300">Job Description: </span>
-                    <a href={selectedMeeting.jd_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline dark:text-blue-400 dark:hover:text-blue-300">
-                      View Link
-                    </a>
                   </div>
                 )}
-                {selectedMeeting.resume_link && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-purple-400" />
-                    <span className="text-gray-700 dark:text-gray-300">Resume: </span>
-                    <a href={selectedMeeting.resume_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline dark:text-blue-400 dark:hover:text-blue-300">
-                      View Link
-                    </a>
                   </div>
-                )}
-              </DialogDescription>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-4">
               <DialogClose>
-                <Button variant="outline" className="mt-2 w-full">Close</Button>
+                  <Button 
+                    variant="outline" 
+                    className="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 hover:text-gray-800 font-semibold px-6 py-2 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 dark:from-gray-700 dark:to-gray-600 dark:text-gray-300 dark:hover:from-gray-600 dark:hover:to-gray-500"
+                  >
+                    Close
+                  </Button>
               </DialogClose>
+              </div>
             </div>
           )}
-          {selectedMeeting && editMode && (
+          {selectedMeeting && editMode && editData && (
             <div>
               <DialogTitle className="flex items-center gap-2">
                 <input
@@ -796,14 +945,14 @@ export default function ScheduleRightSection({ selectedDate }) {
                 </div>
                 <div className="flex gap-4 mb-2">
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Meeting Type</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Lead Type</label>
                     <select
                       className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       value={editData.meeting_type || ''}
                       onChange={e => handleEditChange('meeting_type', e.target.value)}
                       required
                     >
-                      <option value="">Select meeting type...</option>
+                      <option value="">Select lead type...</option>
                       <option value="W2">W2 (Permanent)</option>
                       <option value="10.99">10.99 (Contract)</option>
                       <option value="C2C">C2C (Contract)</option>
@@ -998,40 +1147,40 @@ export default function ScheduleRightSection({ selectedDate }) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">Date</label>
-                    <input
-                      type="date"
+                  <input
+                    type="date"
                       className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
-                      value={addForm.date}
-                      onChange={e => handleAddFormChange('date', e.target.value)}
-                      required
-                      min={getTodayDateString()}
-                    />
-                  </div>
+                    value={addForm.date}
+                    onChange={e => handleAddFormChange('date', e.target.value)}
+                    required
+                    min={getTodayDateString()}
+                  />
+                </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">Start Time</label>
-                    <input
-                      type="time"
+                  <input
+                    type="time"
                       className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
-                      value={addForm.start_time}
-                      onChange={e => handleAddFormChange('start_time', e.target.value)}
-                      required
-                      min="17:00"
-                      max="02:00"
-                    />
-                  </div>
+                    value={addForm.start_time}
+                    onChange={e => handleAddFormChange('start_time', e.target.value)}
+                    required
+                    min="17:00"
+                    max="02:00"
+                  />
+                </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">End Time</label>
-                    <input
-                      type="time"
+                  <input
+                    type="time"
                       className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
-                      value={addForm.end_time}
-                      onChange={e => handleAddFormChange('end_time', e.target.value)}
-                      required
-                      min="17:00"
-                      max="02:00"
-                    />
-                  </div>
+                    value={addForm.end_time}
+                    onChange={e => handleAddFormChange('end_time', e.target.value)}
+                    required
+                    min="17:00"
+                    max="02:00"
+                  />
                 </div>
+              </div>
               </div>
               {/* Meeting Type & Department Section */}
               <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-green-100/50 dark:border-gray-700/50">
@@ -1041,35 +1190,35 @@ export default function ScheduleRightSection({ selectedDate }) {
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">Meeting Type</label>
-                    <select
+                    <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">Lead Type</label>
+                  <select
                       className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-green-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
-                      value={addForm.meeting_type}
-                      onChange={e => handleAddFormChange('meeting_type', e.target.value)}
-                      required
-                    >
-                      <option value="">Select meeting type...</option>
-                      <option value="W2">W2 (Permanent)</option>
-                      <option value="10.99">10.99 (Contract)</option>
-                      <option value="C2C">C2C (Contract)</option>
-                    </select>
-                  </div>
+                    value={addForm.meeting_type}
+                    onChange={e => handleAddFormChange('meeting_type', e.target.value)}
+                    required
+                  >
+                      <option value="">Select lead type...</option>
+                    <option value="W2">W2 (Permanent)</option>
+                    <option value="10.99">10.99 (Contract)</option>
+                    <option value="C2C">C2C (Contract)</option>
+                  </select>
+                </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">Department</label>
-                    <select
+                  <select
                       className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-green-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
-                      value={addForm.department}
-                      onChange={e => handleAddFormChange('department', Number(e.target.value))}
-                      required
-                      disabled={allDepartments.length === 0}
-                    >
-                      <option value="">Select department...</option>
-                      {allDepartments.map(dep => (
-                        <option key={dep.id} value={dep.id}>{dep.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                    value={addForm.department}
+                    onChange={e => handleAddFormChange('department', Number(e.target.value))}
+                    required
+                    disabled={allDepartments.length === 0}
+                  >
+                    <option value="">Select department...</option>
+                    {allDepartments.map(dep => (
+                      <option key={dep.id} value={dep.id}>{dep.name}</option>
+                    ))}
+                  </select>
                 </div>
+              </div>
               </div>
               {/* Participants Section */}
               <div className="bg-gradient-to-r from-orange-50 to-pink-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-orange-100/50 dark:border-gray-700/50">
@@ -1077,11 +1226,12 @@ export default function ScheduleRightSection({ selectedDate }) {
                   <Users className="w-4 h-4 text-orange-500" />
                   Meeting Participants
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">Primary Assignee</label>
+                <div className={`grid gap-4 ${user?.role === 'BD' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+                  {user?.role !== 'BD' && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">Primary Assignee</label>
                     <select
-                      className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-orange-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
+                        className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-orange-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
                       value={addForm.assignee?.id || ''}
                       onChange={e => {
                         const userId = Number(e.target.value);
@@ -1090,7 +1240,7 @@ export default function ScheduleRightSection({ selectedDate }) {
                       }}
                       disabled={allUsers.length === 0}
                     >
-                      <option value="">Select primary assignee...</option>
+                        <option value="">Select primary assignee...</option>
                       {allUsers
                         .filter(u => !addForm.cc_members.some(m => m.id === u.id))
                         .map(u => (
@@ -1098,53 +1248,54 @@ export default function ScheduleRightSection({ selectedDate }) {
                         ))}
                     </select>
                   </div>
+                  )}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">CC Members</label>
-                    {/* Selected CC members as chips */}
+                  {/* Selected CC members as chips */}
                     <div className="flex flex-wrap gap-2 mb-2 min-h-[42px] border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2 shadow-sm">
-                      {addForm.cc_members.length === 0 ? (
-                        <span className="text-gray-400 text-sm self-center">No CC members selected</span>
-                      ) : (
-                        addForm.cc_members.map((m) => (
+                    {addForm.cc_members.length === 0 ? (
+                      <span className="text-gray-400 text-sm self-center">No CC members selected</span>
+                    ) : (
+                      addForm.cc_members.map((m) => (
                           <span key={m.id} className="flex items-center gap-1 bg-gradient-to-r from-pink-100 to-purple-100 text-pink-800 rounded-full px-3 py-1 text-xs font-medium shadow-sm dark:from-pink-900/30 dark:to-purple-900/30 dark:text-pink-300">
-                            {m.name}
-                            <button
-                              type="button"
+                          {m.name}
+                          <button
+                            type="button"
                               className="ml-1 text-pink-500 hover:text-pink-700 focus:outline-none dark:text-pink-400 dark:hover:text-pink-300"
-                              onClick={() => handleAddFormChange('cc_members', addForm.cc_members.filter(mem => mem.id !== m.id))}
-                              aria-label={`Remove ${m.name}`}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))
-                      )}
-                    </div>
-                    {/* Select for unselected CC members (exclude assignee) */}
-                    <select
+                            onClick={() => handleAddFormChange('cc_members', addForm.cc_members.filter(mem => mem.id !== m.id))}
+                            aria-label={`Remove ${m.name}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  {/* Select for unselected CC members (exclude assignee) */}
+                  <select
                       className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-orange-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
-                      value=""
-                      onChange={e => {
-                        const userId = Number(e.target.value);
-                        if (!userId) return;
-                        const user = allUsers.find(u => u.id === userId);
-                        // Prevent assignee from being added to CC
-                        if (user && !addForm.cc_members.some(m => m.id === user.id) && user.id !== addForm.assignee?.id) {
-                          handleAddFormChange('cc_members', [...addForm.cc_members, user]);
-                        }
-                      }}
-                      disabled={allUsers.length === 0}
-                    >
-                      <option value="">Add CC member...</option>
-                      {allUsers
-                        .filter(u =>
-                          !addForm.cc_members.some(m => m.id === u.id) &&
-                          u.id !== addForm.assignee?.id
-                        )
-                        .map(u => (
-                          <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                    </select>
+                    value=""
+                    onChange={e => {
+                      const userId = Number(e.target.value);
+                      if (!userId) return;
+                      const user = allUsers.find(u => u.id === userId);
+                      // Prevent assignee from being added to CC
+                      if (user && !addForm.cc_members.some(m => m.id === user.id) && user.id !== addForm.assignee?.id) {
+                        handleAddFormChange('cc_members', [...addForm.cc_members, user]);
+                      }
+                    }}
+                    disabled={allUsers.length === 0}
+                  >
+                    <option value="">Add CC member...</option>
+                    {allUsers
+                      .filter(u =>
+                        !addForm.cc_members.some(m => m.id === u.id) &&
+                        u.id !== addForm.assignee?.id
+                      )
+                      .map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                  </select>
                   </div>
                 </div>
               </div>
@@ -1158,25 +1309,25 @@ export default function ScheduleRightSection({ selectedDate }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">Job Description Link</label>
-                    <input
-                      type="url"
+                  <input
+                    type="url"
                       className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-indigo-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400"
-                      value={addForm.jd_link}
-                      onChange={e => handleAddFormChange('jd_link', e.target.value)}
-                      placeholder="https://example.com/job-description"
-                    />
-                  </div>
+                    value={addForm.jd_link}
+                    onChange={e => handleAddFormChange('jd_link', e.target.value)}
+                    placeholder="https://example.com/job-description"
+                  />
+                </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">Resume Link</label>
-                    <input
-                      type="url"
+                  <input
+                    type="url"
                       className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-indigo-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400"
-                      value={addForm.resume_link}
-                      onChange={e => handleAddFormChange('resume_link', e.target.value)}
-                      placeholder="https://example.com/resume"
-                    />
-                  </div>
+                    value={addForm.resume_link}
+                    onChange={e => handleAddFormChange('resume_link', e.target.value)}
+                    placeholder="https://example.com/resume"
+                  />
                 </div>
+              </div>
               </div>
               {/* Action Buttons */}
               <div className="flex gap-3 pt-4">

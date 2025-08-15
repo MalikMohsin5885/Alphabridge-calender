@@ -39,7 +39,7 @@ function AddRolePage() {
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
-    if (!loading && user?.role !== 'Supervisor') {
+    if (!loading && user?.role !== 'Administrator') {
       router.replace('/dashboard');
     }
   }, [user, loading, router]);
@@ -70,7 +70,7 @@ function AddRolePage() {
 
   // Load data on component mount
   useEffect(() => {
-    if (!loading && user?.role === 'Supervisor') {
+    if (!loading && user?.role === 'Administrator') {
       fetchRolesAndPermissions();
     }
   }, [loading, user]);
@@ -172,7 +172,7 @@ function AddRolePage() {
       .join(' ');
   };
 
-  if (loading || user?.role !== 'Supervisor') {
+  if (loading || user?.role !== 'Administrator') {
     return null;
   }
 

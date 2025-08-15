@@ -92,8 +92,8 @@ export default function Header() {
           <FaCalendarAlt className="w-4 h-4" />
           Schedule
         </a>
-        {/* Only show Add User and Add Role for Supervisor */}
-        {user?.role === 'Supervisor' && (
+        {/* Only show Add User and Add Role for Administrator */}
+        {user?.role === 'Administrator' && (
           <>
             <a
               href="/dashboard/add-user"
@@ -171,8 +171,8 @@ export default function Header() {
                     <div className="text-gray-700 text-base dark:text-gray-300">{user?.department?.name || "No department"}</div>
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Supervisor</span>
-                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.supervisor?.name || "No supervisor"}</div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Administrator</span>
+                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.supervisor?.name || "No administrator"}</div>
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400">Status</span>
