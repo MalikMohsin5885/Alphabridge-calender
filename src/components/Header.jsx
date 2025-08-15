@@ -166,26 +166,6 @@ export default function Header() {
                     <span className="text-xs text-gray-500 dark:text-gray-400">Role</span>
                     <div className="text-blue-700 text-base font-medium capitalize dark:text-blue-400">{user?.role || "No role"}</div>
                   </div>
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Department</span>
-                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.department?.name || "No department"}</div>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Administrator</span>
-                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.supervisor?.name || "No administrator"}</div>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Status</span>
-                    <div className={`text-base font-medium capitalize ${
-                      user?.status === 'active' 
-                        ? 'text-green-600 dark:text-green-400' 
-                        : user?.status === 'inactive' 
-                        ? 'text-red-600 dark:text-red-400' 
-                        : 'text-gray-600 dark:text-gray-400'
-                    }`}>
-                      {user?.status || "Unknown"}
-                    </div>
-                  </div>
                 </div>
               </div>
               <SheetFooter>

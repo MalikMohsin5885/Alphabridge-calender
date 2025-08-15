@@ -550,8 +550,8 @@ export default function ScheduleRightSection({ selectedDate }) {
                 </>
               )}
             </div>
-            {/* Only show Add Meeting button if user is not a Member or Closer */}
-            {user?.role !== 'Member' && user?.role !== 'Closer' && (
+            {/* Only show Add Meeting button if user is not a Member, Closer, or Guest */}
+            {user?.role !== 'Member' && user?.role !== 'Closer' && user?.role !== 'Guest' && (
             <Button variant="default" size="sm" className="rounded-full flex items-center gap-2 shadow-md" onClick={() => setAddModalOpen(true)}>
               <Plus className="w-4 h-4" /> Add Meeting
             </Button>
@@ -652,8 +652,8 @@ export default function ScheduleRightSection({ selectedDate }) {
                       )}
                     </div>
                   </DialogTitle>
-                  {/* Only show edit button if user is not a Member or Closer */}
-                  {user?.role !== 'Member' && user?.role !== 'Closer' && (
+                  {/* Only show edit button if user is not a Member, Closer, or Guest */}
+                  {user?.role !== 'Member' && user?.role !== 'Closer' && user?.role !== 'Guest' && (
                     <Button size="icon" variant="ghost" className="hover:bg-blue-100 dark:hover:bg-blue-900/30" onClick={startEdit} aria-label="Edit meeting">
                       <Pencil className="w-4 h-4" />
                     </Button>
@@ -824,7 +824,7 @@ export default function ScheduleRightSection({ selectedDate }) {
                       <FileText className="w-4 h-4 text-yellow-500" />
                       Meeting Remarks
                     </label>
-                      {!remarksEditMode && (user?.role === 'Member' || user?.role === 'Closer') && (
+                      {!remarksEditMode && (user?.role === 'Member' || user?.role === 'Closer') && user?.role !== 'Guest' && (
                         <Button 
                           size="sm" 
                           variant="ghost" 
