@@ -2,12 +2,16 @@
 import withPrivateRoute from "../../../components/withPrivateRoute";
 import ScheduleLeftSection from '../../../components/ScheduleLeftSection';
 import ScheduleRightSection from '../../../components/ScheduleRightSection';
+import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
 import React, { useState } from 'react';
 
 function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   return (
     <div className="relative min-h-[80vh] px-8 py-6 mt-24 dark:bg-gray-900">
+      <div className="flex justify-end mb-4">
+        <GoogleLoginButton />
+      </div>
       <div className="flex h-full w-full gap-4">
         {/* Left Section - 40% */}
         <div className="w-[30%]">
