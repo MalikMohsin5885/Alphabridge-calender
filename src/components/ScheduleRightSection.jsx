@@ -1,6 +1,9 @@
 'use client';
 
 import React from 'react';
+import moment from "moment-timezone";
+// import moment from "moment";
+
 import { Plus, CalendarDays, User, Users, Clock, FileText, Pencil, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +31,7 @@ import {
   convertSlotToEastern,
   getEasternTimezoneAbbr,
   debugTimezoneConversion,
+  convertToPakistanTime,
 } from '@/lib/scheduleUtils';
 
 // Users will be fetched from the API
@@ -240,32 +244,57 @@ export default function ScheduleRightSection({ selectedDate }) {
       return;
     }
     // Only allow times from 17:00 to 23:59 or 00:00 to 02:00
-    function isAllowedTimeRange(time) {
-      if (!time) return false;
-      const [h, m] = time.split(':').map(Number);
-      return (h >= 17 && h <= 23) || (h >= 0 && h <= 2);
-    }
-    if (!isAllowedTimeRange(editData.start_time) || !isAllowedTimeRange(editData.end_time)) {
-      toast.error('Meetings can only be scheduled between 5:00 PM and 2:00 AM.');
-      return;
-    }
+    // function isAllowedTimeRange(time) {
+    //   if (!time) return false;
+    //   const [h, m] = time.split(':').map(Number);
+    //   return (h >= 17 && h <= 23) || (h >= 0 && h <= 2);
+    // }
+    // if (!isAllowedTimeRange(editData.start_time) || !isAllowedTimeRange(editData.end_time)) {
+    //   toast.error('Meetings can only be scheduled between 5:00 PM and 2:00 AM.');
+    //   return;
+    // }
+
     // If date is today, start and end time must be after current time
     const todayStr = getTodayDateString();
+    // if (editData.date === todayStr) {
+    //   const now = new Date();
+    //   const nowH = now.getHours();
+    //   const nowM = now.getMinutes();
+    //   const [startH, startM] = editData.start_time.split(':').map(Number);
+    //   const [endH, endM] = editData.end_time.split(':').map(Number);
+    //   if (startH < nowH || (startH === nowH && startM <= nowM)) {
+    //     toast.error('Start time must be after the current time.');
+    //     return;
+    //   }
+    //   if (endH < nowH || (endH === nowH && endM <= nowM)) {
+    //     toast.error('End time must be after the current time.');
+    //     return;
+    //   }
+    // }
+
     if (editData.date === todayStr) {
-      const now = new Date();
-      const nowH = now.getHours();
-      const nowM = now.getMinutes();
-      const [startH, startM] = editData.start_time.split(':').map(Number);
-      const [endH, endM] = editData.end_time.split(':').map(Number);
-      if (startH < nowH || (startH === nowH && startM <= nowM)) {
-        toast.error('Start time must be after the current time.');
+      // Current time in Eastern
+      const nowEastern = moment.tz(new Date(), "America/New_York");
+    
+      // Start & End time converted to Eastern
+      const startEastern = moment.tz(`${editData.date} ${editData.start_time}`, "Asia/Karachi");
+      const endEastern = moment.tz(`${editData.date} ${editData.end_time}`, "Asia/Karachi");
+      // const endEastern = editData.end_time;
+      console.log(`START EASTERN ${startEastern}\n\n`)
+      console.log(`END EASTERN ${endEastern}`)
+      console.log(`NOW_EASTERN ${nowEastern}`)
+    
+      if (startEastern.isBefore(nowEastern) || startEastern.isSame(nowEastern)) {
+        toast.error("Start time must be after the current time (EST).");
         return;
       }
-      if (endH < nowH || (endH === nowH && endM <= nowM)) {
-        toast.error('End time must be after the current time.');
+    
+      if (endEastern.isBefore(nowEastern) || endEastern.isSame(nowEastern)) {
+        toast.error("End time must be after the current time (EST).");
         return;
       }
     }
+    
 
     try {
       console.log('Editing meeting with data:', editData); // Debug log
@@ -396,6 +425,11 @@ export default function ScheduleRightSection({ selectedDate }) {
 
   // Add Meeting form handlers
   const handleAddFormChange = (field, value) => {
+    // check prints
+    // if (field === 'start_time' || field === 'end_time' || field === 'date') {
+    //   console.log(`🕐 Time Selection - ${field}:`, value);
+    //   console.log('�� Current form state:', { ...addForm, [field]: value });
+    // }
     setAddForm((prev) => ({ ...prev, [field]: value }));
   };
   const handleAddCCMembersChange = (userId) => {
@@ -422,15 +456,23 @@ export default function ScheduleRightSection({ selectedDate }) {
 
   // Helper to get today's date in YYYY-MM-DD format
   function getTodayDateString() {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    // const today = new Date();
+    // const yyyy = today.getFullYear();
+    // const mm = String(today.getMonth() + 1).padStart(2, '0');
+    // const dd = String(today.getDate()).padStart(2, '0');
+    // return `${yyyy}-${mm}-${dd}`;
+    return moment.tz("America/New_York").format("YYYY-MM-DD");
   }
 
   const handleAddMeeting = async (e) => {
     e.preventDefault();
+    // check prints
+    // console.log('�� Submitting meeting with times:', {
+    //   date: addForm.date,
+    //   start_time: addForm.start_time,
+    //   end_time: addForm.end_time,
+    //   fullForm: addForm
+    // });
     
     // Prevent selecting a date before today
     if (addForm.date < getTodayDateString()) {
@@ -439,20 +481,44 @@ export default function ScheduleRightSection({ selectedDate }) {
     }
     // If date is today, start and end time must be after current time
     const todayStr = getTodayDateString();
+    // if (addForm.date === todayStr) {
+    //   const now = new Date();
+    //   const nowH = now.getHours();
+    //   const nowM = now.getMinutes();
+    //   const [startH, startM] = addForm.start_time.split(':').map(Number);
+    //   const [endH, endM] = addForm.end_time.split(':').map(Number);
+    //   // Check start time
+    //   if (startH < nowH || (startH === nowH && startM <= nowM)) {
+    //     toast.error('Start time must be after the current time.');
+    //     return;
+    //   }
+    //   // Check end time
+    //   if (endH < nowH || (endH === nowH && endM <= nowM)) {
+    //     toast.error('End time must be after the current time.');
+    //     return;
+    //   }
+    // }
     if (addForm.date === todayStr) {
-      const now = new Date();
-      const nowH = now.getHours();
-      const nowM = now.getMinutes();
-      const [startH, startM] = addForm.start_time.split(':').map(Number);
-      const [endH, endM] = addForm.end_time.split(':').map(Number);
-      // Check start time
-      if (startH < nowH || (startH === nowH && startM <= nowM)) {
-        toast.error('Start time must be after the current time.');
+      // Current time in Eastern
+      const nowEastern = moment.tz(new Date(), "America/New_York");
+    
+      // Start & End time converted to Eastern
+      const startEastern = moment.tz(`${addForm.date} ${addForm.start_time}`, "America/New_York");
+      const endEastern = moment.tz(`${addForm.date} ${addForm.end_time}`, "America/New_York");
+      
+      // const startEasternE = moment.tz(`${addForm.date} ${addForm.start_time}`, "America/New_York");
+      console.log(`START EASTERN ${startEastern}\n\n`)
+      // console.log(`START EASTERN E${startEasternE}\n\n`)
+      console.log(`END EASTERN ${endEastern}`)
+      console.log(`NOW EASTERN ${nowEastern}`)
+    
+      if (startEastern.isBefore(nowEastern) || startEastern.isSame(nowEastern)) {
+        toast.error("Start time must be after the current time (EST).");
         return;
       }
-      // Check end time
-      if (endH < nowH || (endH === nowH && endM <= nowM)) {
-        toast.error('End time must be after the current time.');
+    
+      if (endEastern.isBefore(nowEastern) || endEastern.isSame(nowEastern)) {
+        toast.error("End time must be after the current time (EST).");
         return;
       }
     }
@@ -593,13 +659,14 @@ export default function ScheduleRightSection({ selectedDate }) {
                   ))}
                   {/* Meeting boxes */}
                   {meetings.map((meeting) => {
-                    const top = getSlotIndex(meeting.start) * 48;
-                    const height = (getSlotIndex(meeting.end) - getSlotIndex(meeting.start)) * 48;
-                    const { left, width, totalOverlapping } = calculateMeetingLayout(meeting, meetings);
+                    const top = (getSlotIndex(meeting.start)+1) * 48;
+                    const height = (getSlotIndex(meeting.end) - getSlotIndex(meeting.start) +1) * 48 ;
+                    const {
+                       left, width, totalOverlapping } = calculateMeetingLayout(meeting, meetings);
                     
                     // Convert times to EST for display
-                    const estStart = convertToEastern(meeting.start, meeting.date);
-                    const estEnd = convertToEastern(meeting.end, meeting.date);
+                    const estStart = convertToPakistanTime(meeting.start, meeting.date);
+                    const estEnd = convertToPakistanTime(meeting.end, meeting.date);
                     
                     return (
                       <MeetingBox
@@ -691,14 +758,14 @@ export default function ScheduleRightSection({ selectedDate }) {
                     </div>
                     
                     <div className="bg-white/70 dark:bg-gray-700/70 rounded-xl p-3 text-center">
-                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Time (PKT)</div>
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Time (EST)</div>
                       <div className="text-base font-bold text-gray-800 dark:text-gray-200">
                         {mounted ? new Date(`${selectedMeeting.date}T${selectedMeeting.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     {' - '}
                     {mounted ? new Date(`${selectedMeeting.date}T${selectedMeeting.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {getEasternTimezoneAbbr()}: {convertToEastern(selectedMeeting.start, selectedMeeting.date)} - {convertToEastern(selectedMeeting.end, selectedMeeting.date)}
+                        PKT: {convertToPakistanTime(selectedMeeting.start, selectedMeeting.date)} - {convertToPakistanTime(selectedMeeting.end, selectedMeeting.date)}
                       </div>
                     </div>
                   </div>
@@ -926,8 +993,8 @@ export default function ScheduleRightSection({ selectedDate }) {
                       value={editData.start_time}
                       onChange={e => handleEditChange('start_time', e.target.value)}
                       required
-                      min="17:00"
-                      max="02:00"
+                      // min="17:00"
+                      // max="02:00"
                     />
                   </div>
                   <div className="flex-1">
@@ -938,8 +1005,8 @@ export default function ScheduleRightSection({ selectedDate }) {
                       value={editData.end_time}
                       onChange={e => handleEditChange('end_time', e.target.value)}
                       required
-                      min="17:00"
-                      max="02:00"
+                      // min="17:00"
+                      // max="02:00"
                     />
                   </div>
                 </div>
@@ -1164,8 +1231,8 @@ export default function ScheduleRightSection({ selectedDate }) {
                     value={addForm.start_time}
                     onChange={e => handleAddFormChange('start_time', e.target.value)}
                     required
-                    min="17:00"
-                    max="02:00"
+                    // min="17:00"
+                    // max="02:00"
                   />
                 </div>
                   <div>
@@ -1176,8 +1243,8 @@ export default function ScheduleRightSection({ selectedDate }) {
                     value={addForm.end_time}
                     onChange={e => handleAddFormChange('end_time', e.target.value)}
                     required
-                    min="17:00"
-                    max="02:00"
+                    // min="17:00"
+                    // max="02:00"
                   />
                 </div>
               </div>

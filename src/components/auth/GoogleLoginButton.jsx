@@ -94,12 +94,17 @@ const codeClient = googleAuth.initCodeClient({
       return;
     }
     console.log("\n\nAUTHORIZATION CODE =>", response);
+    
+    const token = localStorage.getItem("access_token");
+    console.log("\n\nACCESS CODE =>", token);
 
     try {
       await fetch('http://127.0.0.1:8000/auth/google/auth-code/', {
         method: 'POST',
-
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`  // Add this line
+        },
         body: JSON.stringify({ code: response.code }),
       });
       // console.error('Done to backend');

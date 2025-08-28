@@ -24,17 +24,38 @@ export const TIME_SLOTS = (() => {
   }
   return slots;
 })();
+// export const TIME_SLOTS = (() => {
+//   const slots = [];
+//   for (let hour = 9; hour <= 17; hour++) {
+//     for (let minute of [0, 30]) {
+//       const h = hour % 24;
+//       const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+//       const ampm = h >= 12 ? 'PM' : 'AM';
+//       slots.push(`${displayHour}:${minute === 0 ? '00' : '30'} ${ampm}`);
+//     }
+//   }
+//   return slots;
+// })();
 
 export const MEETING_BOX_WIDTH = 200; // px
 export const MEETING_BOX_GAP = 16; // px
 
+// export const getSlotIndex = (time) => {
+//   const [h, m] = time.split(':').map(Number);
+//   let hour = h;
+//   // If hour is less than 5 (AM), treat as next day (e.g., 1 AM = 25)
+//   if (hour < 5) hour += 24;
+//   const base = 17; // 17:00 is slot 0
+//   return (hour - base) * 2 + (m === 30 ? 1 : 0);
+// };
+
 export const getSlotIndex = (time) => {
   const [h, m] = time.split(':').map(Number);
   let hour = h;
-  // If hour is less than 5 (AM), treat as next day (e.g., 1 AM = 25)
-  if (hour < 5) hour += 24;
-  const base = 17; // 17:00 is slot 0
-  return (hour - base) * 2 + (m === 30 ? 1 : 0);
+  if (hour < 8) hour += 24;
+
+  const base = 8; // 8:00 AM is slot 0 in EST
+  return (hour - base) * 2 + (m >= 30 ? 1 : 0);
 };
 
 export const meetingsOverlap = (meeting1, meeting2) => {
@@ -106,10 +127,40 @@ export const convertToEastern = (time, date) => {
     const pkDateTime = moment.tz(`${formattedDate} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`, 'Asia/Karachi');
     
     // Convert to EST (Eastern Standard Time, GMT-5) - always use EST, not EDT
-    const estDateTime = pkDateTime.clone().tz('America/New_York').utcOffset(-5);
+    // const estDateTime = pkDateTime.clone().tz('America/New_York').utcOffset(-5);
+    const estDateTime = pkDateTime.clone().tz('America/New_York').utcOffset(-4);
+    // console.log(`EST TIME => ${estDateTime}\n\n`)
     
+    // estDateTime = estDateTime.add(1, 'hour');
     // Format in 12-hour format
     return estDateTime.format('h:mm A');
+  } catch (error) {
+    console.error('Error converting timezone:', error);
+    return '';
+  }
+};
+
+export const convertToPakistanTime = (time, date) => {
+  if (!time || !date) return '';
+
+  try {
+    // Parse the time
+    const [hours, minutes] = time.split(':').map(Number);
+
+    // Ensure date format
+    const formattedDate = moment(date).format('YYYY-MM-DD');
+
+    // Create a moment object in EST/New York time zone
+    const estDateTime = moment.tz(
+      `${formattedDate} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`,
+      'America/New_York'
+    );
+
+    // Convert to Pakistan time (Asia/Karachi)
+    const pkDateTime = estDateTime.clone().tz('Asia/Karachi');
+
+    // Return formatted time in 12-hour format
+    return pkDateTime.format('h:mm A');
   } catch (error) {
     console.error('Error converting timezone:', error);
     return '';
@@ -135,7 +186,8 @@ export const convertSlotToEastern = (slot) => {
     const pkDateTime = moment.tz(`${today} ${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`, 'Asia/Karachi');
     
     // Convert to EST (always GMT-5)
-    const estDateTime = pkDateTime.clone().tz('America/New_York').utcOffset(-5);
+    // const estDateTime = pkDateTime.clone().tz('America/New_York').utcOffset(-5);
+    const estDateTime = pkDateTime.clone().tz('America/New_York').utcOffset(-4);
     
     // Format in 12-hour format
     return estDateTime.format('h:mm A');
