@@ -1,5 +1,5 @@
 'use client';
-
+// Remove
 import React from 'react';
 import moment from "moment-timezone";
 // import moment from "moment";
@@ -49,6 +49,7 @@ export default function ScheduleRightSection({ selectedDate }) {
   const [allUsers, setAllUsers] = React.useState([]);
   const [closers, setClosers] = React.useState([]);
   const [allDepartments, setAllDepartments] = React.useState([]);
+  const [isCreatingMeeting, setIsCreatingMeeting] = React.useState(false);
   const [addForm, setAddForm] = React.useState({
     title: '',
     description: '',
@@ -159,7 +160,6 @@ export default function ScheduleRightSection({ selectedDate }) {
             console.log('Processing meeting:', meeting);
             console.log('Meeting department field:', meeting.department);
             
-            // Combine date and time to create a proper Date object
             const startDate = new Date(`${meeting.date}T${meeting.start_time}`);
             const endDate = new Date(`${meeting.date}T${meeting.end_time}`);
             const pad = n => n.toString().padStart(2, '0');
@@ -172,8 +172,27 @@ export default function ScheduleRightSection({ selectedDate }) {
             // Extract CC members from other_participants
             const ccMembers = meeting.other_participants?.map(p => p.user) || [];
 
-            // Check if current user is the assignee
-            const isMyMeeting = assignee?.id === user?.id;
+            // Check if current user is the assignee (To field)
+            const isAssignedToMe = assignee?.id === user?.id;
+            
+            // Check if current user is in CC
+            const isInCC = ccMembers.some(member => member.id === user?.id);
+            
+            // Check if current user is the creator
+            const isCreatedByMe = meeting.created_by === user?.id;
+            
+            // Determine color based on user's role in the meeting
+            let color;
+            if (isAssignedToMe) {
+              // Blue for meetings assigned to me (To field)
+              color = 'from-blue-400 to-blue-300';
+            } else if (isInCC || isCreatedByMe) {
+              // Red for meetings where I'm CC or creator but not assigned to me
+              color = 'from-red-400 to-red-300';
+            } else {
+              // Default color for other meetings
+              color = 'from-gray-200 to-gray-100';
+            }
             
             return {
               ...meeting,
@@ -187,9 +206,9 @@ export default function ScheduleRightSection({ selectedDate }) {
               remarks: meeting.remarks || '',
               jd_link: meeting.jd_link || '',
               resume_link: meeting.resume_link || '',
-              color: isMyMeeting ? 'from-cyan-400 to-cyan-300' : 'from-blue-200 to-blue-100',
-              icon: <CalendarDays className={`w-5 h-5 ${isMyMeeting ? 'text-white' : 'text-blue-500'}`} />,
-              isMyMeeting,
+              color: color,
+              icon: <CalendarDays className={`w-5 h-5 ${isAssignedToMe ? 'text-white' : isInCC || isCreatedByMe ? 'text-white' : 'text-gray-500'}`} />,
+              isMyMeeting: isAssignedToMe, // Keep this for backward compatibility
             };
           });
         console.log('Mapped meetings:', mappedMeetings); // Debug log
@@ -329,8 +348,27 @@ export default function ScheduleRightSection({ selectedDate }) {
           // Extract CC members from other_participants
           const ccMembers = meeting.other_participants?.map(p => p.user) || [];
 
-          // Check if current user is the assignee
-          const isMyMeeting = assignee?.id === user?.id;
+          // Check if current user is the assignee (To field)
+          const isAssignedToMe = assignee?.id === user?.id;
+          
+          // Check if current user is in CC
+          const isInCC = ccMembers.some(member => member.id === user?.id);
+          
+          // Check if current user is the creator
+          const isCreatedByMe = meeting.created_by === user?.id;
+          
+          // Determine color based on user's role in the meeting
+          let color;
+          if (isAssignedToMe) {
+            // Blue for meetings assigned to me (To field)
+            color = 'from-blue-400 to-blue-300';
+          } else if (isInCC || isCreatedByMe) {
+            // Red for meetings where I'm CC or creator but not assigned to me
+            color = 'from-red-400 to-red-300';
+          } else {
+            // Default color for other meetings
+            color = 'from-gray-200 to-gray-100';
+          }
           
           return {
             ...meeting,
@@ -344,9 +382,9 @@ export default function ScheduleRightSection({ selectedDate }) {
             remarks: meeting.remarks || '',
             jd_link: meeting.jd_link || '',
             resume_link: meeting.resume_link || '',
-            color: isMyMeeting ? 'from-cyan-400 to-cyan-300' : 'from-blue-200 to-blue-100',
-            icon: <CalendarDays className={`w-5 h-5 ${isMyMeeting ? 'text-white' : 'text-blue-500'}`} />,
-            isMyMeeting,
+            color: color,
+            icon: <CalendarDays className={`w-5 h-5 ${isAssignedToMe ? 'text-white' : isInCC || isCreatedByMe ? 'text-white' : 'text-gray-500'}`} />,
+            isMyMeeting: isAssignedToMe, // Keep this for backward compatibility
           };
         });
       console.log('Mapped meetings after edit:', mappedMeetings);
@@ -555,8 +593,27 @@ export default function ScheduleRightSection({ selectedDate }) {
           // Extract CC members from other_participants
           const ccMembers = meeting.other_participants?.map(p => p.user) || [];
 
-          // Check if current user is the assignee
-          const isMyMeeting = assignee?.id === user?.id;
+          // Check if current user is the assignee (To field)
+          const isAssignedToMe = assignee?.id === user?.id;
+          
+          // Check if current user is in CC
+          const isInCC = ccMembers.some(member => member.id === user?.id);
+          
+          // Check if current user is the creator
+          const isCreatedByMe = meeting.created_by === user?.id;
+          
+          // Determine color based on user's role in the meeting
+          let color;
+          if (isAssignedToMe) {
+            // Blue for meetings assigned to me (To field)
+            color = 'from-blue-400 to-blue-300';
+          } else if (isInCC || isCreatedByMe) {
+            // Red for meetings where I'm CC or creator but not assigned to me
+            color = 'from-red-400 to-red-300';
+          } else {
+            // Default color for other meetings
+            color = 'from-gray-200 to-gray-100';
+          }
           
           return {
             ...meeting,
@@ -570,9 +627,9 @@ export default function ScheduleRightSection({ selectedDate }) {
             remarks: meeting.remarks || '',
             jd_link: meeting.jd_link || '',
             resume_link: meeting.resume_link || '',
-            color: isMyMeeting ? 'from-cyan-400 to-cyan-300' : 'from-blue-200 to-blue-100',
-            icon: <CalendarDays className={`w-5 h-5 ${isMyMeeting ? 'text-white' : 'text-blue-500'}`} />,
-            isMyMeeting,
+            color: color,
+            icon: <CalendarDays className={`w-5 h-5 ${isAssignedToMe ? 'text-white' : isInCC || isCreatedByMe ? 'text-white' : 'text-gray-500'}`} />,
+            isMyMeeting: isAssignedToMe, // Keep this for backward compatibility
           };
         });
       setMeetings(mappedMeetings);

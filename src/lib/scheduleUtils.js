@@ -63,7 +63,8 @@ export const meetingsOverlap = (meeting1, meeting2) => {
   const end1 = getSlotIndex(meeting1.end);
   const start2 = getSlotIndex(meeting2.start);
   const end2 = getSlotIndex(meeting2.end);
-  return start1 < end2 && start2 < end1;
+  // return start1 < end2 && start2 < end1 || start1 == start2 ;
+  return (start1 == start2 ) || (start1 < end2 && start2 < end1);
 };
 
 export const groupOverlappingMeetings = (allMeetings) => {
