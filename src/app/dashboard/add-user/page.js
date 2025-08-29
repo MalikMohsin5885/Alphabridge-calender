@@ -371,7 +371,7 @@ function AddUserPage() {
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   value={formData.lead}
                   onChange={(e) =>
-                    handleFormChange("Lead", Number(e.target.value))
+                    handleFormChange("lead", Number(e.target.value))
                   }
                   required
                   disabled={leads.length === 0}
@@ -540,7 +540,7 @@ function AddUserPage() {
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 value={editFormData.lead || ""}
                 onChange={(e) =>
-                  handleEditFormChange("Lead", Number(e.target.value))
+                  handleEditFormChange("lead", Number(e.target.value))
                 }
                 required
                 disabled={leads.length === 0}
