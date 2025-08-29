@@ -90,7 +90,7 @@ export const fetchRolesDepartmentsAdministrators = async () => {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch roles, departments, and administrators');
+    throw new Error('Failed to fetch roles, departments, and leads');
   }
 
   return response.json();

@@ -93,7 +93,7 @@ export default function Header() {
           Schedule
         </a>
         {/* Only show Add User and Add Role for Administrator */}
-        {user?.role === 'Administrator' && (
+        {user?.role === 'Chief' && (
           <>
             <a
               href="/dashboard/add-user"
@@ -171,8 +171,8 @@ export default function Header() {
                     <div className="text-gray-700 text-base dark:text-gray-300">{user?.department?.name || "No department"}</div>
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Administrator</span>
-                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.supervisor?.name || "No administrator"}</div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Lead</span>
+                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.supervisor?.name || "No lead"}</div>
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400">Status</span>
