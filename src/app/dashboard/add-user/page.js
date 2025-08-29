@@ -329,7 +329,7 @@ function AddUserPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Administrator
+                  Lead
                   {administrators.length === 0 && !loading && (
                     <span className="text-red-500 ml-1">*</span>
                   )}
@@ -337,7 +337,7 @@ function AddUserPage() {
                 <select 
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   value={formData.administrator}
-                  onChange={(e) => handleFormChange('administrator', Number(e.target.value))}
+                  onChange={(e) => handleFormChange('Lead', Number(e.target.value))}
                   required
                   disabled={administrators.length === 0}
                 >
