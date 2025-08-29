@@ -50,7 +50,7 @@ export const addUser = async (userData) => {
     password: userData.password || 'defaultPassword123', // You might want to add password field to the form
     role_id: userData.role,
     department_id: userData.department,
-    supervisor_id: userData.administrator,
+    supervisor_id: userData.lead,
     priority: userData.priority
   };
 
@@ -84,7 +84,7 @@ export const updateUser = async (userId, userData) => {
 }; 
 
 // Fetch roles, departments, and administrators from the new API endpoint
-export const fetchRolesDepartmentsAdministrators = async () => {
+export const fetchRolesDepartmentsLeads = async () => {
   const response = await fetch(`${API_BASE_URL}/roles-departments-supervisors/`, {
     headers: getAuthHeaders(),
   });
