@@ -168,7 +168,7 @@ export default function Header() {
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400">Department</span>
-                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.department?.name || "No department"}</div>
+                    <div className="text-gray-700 text-base dark:text-gray-300"> {user?.department || "No department"}</div>
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400">Lead</span>

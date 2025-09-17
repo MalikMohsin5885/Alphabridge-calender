@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAccessToken } from "../../../services/loginService";
-import Login from '../../../components/Login';
+import { jwtDecode } from "jwt-decode";
+import Login from "../../../components/Login";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,15 +12,34 @@ export default function LoginPage() {
 
   useEffect(() => {
     const token = getAccessToken();
+
     if (token) {
-      router.replace("/dashboard");
-    } else {
-      setChecking(false);
+      try {
+        const decoded = jwtDecode(token);
+        const currentTime = Date.now() / 1000;
+
+        if (decoded.exp > currentTime) {
+          // ✅ Token exists and is still valid → go to dashboard
+          router.replace("/dashboard");
+          return;
+        } else {
+          // ❌ Token expired → clear it
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+        }
+      } catch (err) {
+        // ❌ Invalid token → clear it
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+      }
     }
+
+    // No valid token → show login form
+    setChecking(false);
   }, [router]);
 
   if (checking) {
-    return null; // Or a spinner
+    return null; // Or spinner
   }
 
   return (
@@ -28,4 +48,3 @@ export default function LoginPage() {
     </div>
   );
 }
-  
