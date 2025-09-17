@@ -139,6 +139,7 @@ function AddUserPage() {
     try {
       await updateUser(editingUser.id, {
         name: editFormData.name,
+        email: editFormData.email,
         role: editFormData.role,
         department: editFormData.department,
         supervisor: editFormData.lead,
@@ -153,6 +154,7 @@ function AddUserPage() {
       // Reset form and close dialog
       setEditFormData({
         name: "",
+        email: "",
         role: "",
         department: "",
         lead: "",
@@ -174,6 +176,7 @@ function AddUserPage() {
     setEditingUser(user);
     setEditFormData({
       name: user.name || "",
+      email: user.email || "",
       role: user.role || "",
       department: user.department || "",
       lead: user.supervisor || "",
@@ -445,9 +448,9 @@ function AddUserPage() {
 
       {/* Edit User Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>Update user details.</DialogDescription>
+         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+         <DialogTitle>Edit User</DialogTitle>
+         <DialogDescription>Update user details.</DialogDescription>
           <form onSubmit={handleEditSubmit} className="space-y-4">
             {loading && (
               <div className="text-center text-gray-500 dark:text-gray-400 py-4">
@@ -467,6 +470,20 @@ function AddUserPage() {
                 required
               />
             </div>
+            <div>
+  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+    Email
+  </label>
+  <input
+    type="email"
+    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
+    placeholder="Enter email"
+    value={editFormData.email || ""}
+    onChange={(e) => handleEditFormChange("email", e.target.value)}
+    required
+  />
+</div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Role
