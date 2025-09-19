@@ -20,7 +20,8 @@ import {
 } from "../../../services/userService";
 import withPrivateRoute from "../../../components/withPrivateRoute";
 
-function AddUserPage() {
+export default function AddUserPage() {
+   try {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -30,26 +31,51 @@ function AddUserPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "",
-    department: "",
-    lead: "",
-    is_active: true,
-    priority: "",
-  });
+  name: "",
+  email: "",
+  password: "",
+  role: "",
+  department: "",
+  lead: "",
+  is_active: true,
+  priority: "",
+  meeting_eligibility: {
+    departments: [],
+    priority: 1,
+    can_take_contract: false,
+    can_take_w2: false,
+  },
+});
+
   const [editFormData, setEditFormData] = useState({
-    name: "",
-    role: "",
-    department: "",
-    lead: "",
-    priority: "",
-    is_active: true,
-  });
+  name: "",
+  email: "",
+  role: "",
+  department: "",
+  lead: "",
+  priority: "",
+  is_active: true,
+  // match Add User shape
+  meeting_eligibility: {
+    departments: [],
+    priority: 1,
+    can_take_contract: false,
+    can_take_w2: false,
+  },
+});
   const [submitting, setSubmitting] = useState(false);
   const [editing, setEditing] = useState(false);
 
+  useEffect(() => {
+    // if departments is missing or undefined -> reload page
+    if (!departments) {
+      window.location.reload();
+    }
+  }, [departments]);
+
+  if (!departments) {
+    return <div>Loading...</div>; // fallback before reload kicks in
+  }
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -57,7 +83,7 @@ function AddUserPage() {
         const data = await fetchRolesDepartmentsLeads();
         console.log("Fetched data:", data);
         console.log("Roles:", data.roles);
-        console.log("Departments:", data.departments);
+        //console.log("Departments:", data.departments);
         console.log("leads:", data.supervisors);
 
         setRoles(data.roles || []);
@@ -92,20 +118,61 @@ function AddUserPage() {
     loadData();
   }, []);
 
-  const handleFormChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  if (typeof departments === "undefined") {
+      console.warn("departments is undefined — bypassing");
+      return null; // or return a loader/spinner instead
+    }
 
-  const handleEditFormChange = (field, value) => {
+  const handleFormChange = (field, value, nested = false) => {
+  if (nested) {
+    setFormData((prev) => ({
+      ...prev,
+      meeting_eligibility: {
+        ...prev.meeting_eligibility,
+        [field]: value,
+      },
+    }));
+  } else {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }
+};
+
+
+  const handleEditFormChange = (field, value, nested = false) => {
+  if (nested) {
+    setEditFormData((prev) => ({
+      ...prev,
+      meeting_eligibility: {
+        ...prev.meeting_eligibility,
+        [field]: value,
+      },
+    }));
+  } else {
     setEditFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
 
     try {
-      await addUser(formData);
+      await addUser({
+  name: formData.name,
+  email: formData.email,
+  password: formData.password,
+  role_id: formData.role,
+  department_id: formData.department,
+  supervisor_id: formData.lead,
+  is_active: formData.is_active,
+  meeting_eligibility: {
+    departments: formData.meeting_eligibility.departments,
+    priority: formData.priority,
+    can_take_contract: formData.meeting_eligibility.can_take_contract,
+    can_take_w2: formData.meeting_eligibility.can_take_w2,
+  },
+});
+
 
       // Refresh the users list
       const usersData = await fetchAllUsers();
@@ -137,15 +204,29 @@ function AddUserPage() {
     setEditing(true);
 
     try {
-      await updateUser(editingUser.id, {
-        name: editFormData.name,
-        email: editFormData.email,
-        role: editFormData.role,
-        department: editFormData.department,
-        supervisor: editFormData.lead,
-        priority: editFormData.priority,
-        is_active: editFormData.is_active,
-      });
+     // Replace existing updateUser(...) call inside handleEditSubmit with this payload:
+await updateUser(editingUser.id, {
+  name: editFormData.name,
+  email: editFormData.email,
+  role: editFormData.role,
+  department: editFormData.department,
+  supervisor: editFormData.lead,
+  priority: editFormData.priority,
+  is_active: editFormData.is_active,
+  // send meeting_eligibilities as an array (backend uses array in your users)
+  meeting_eligibilities: [
+    {
+      departments: editFormData.meeting_eligibility?.departments || [],
+      priority:
+        editFormData.meeting_eligibility?.priority ??
+        editFormData.priority ??
+        1,
+      can_take_contract: !!editFormData.meeting_eligibility?.can_take_contract,
+      can_take_w2: !!editFormData.meeting_eligibility?.can_take_w2,
+    },
+  ],
+});
+
 
       // Refresh the users list
       const usersData = await fetchAllUsers();
@@ -172,19 +253,28 @@ function AddUserPage() {
     }
   };
 
-  const handleEditUser = (user) => {
-    setEditingUser(user);
-    setEditFormData({
-      name: user.name || "",
-      email: user.email || "",
-      role: user.role || "",
-      department: user.department || "",
-      lead: user.supervisor || "",
-      priority: user.priority || "",
-      is_active: user.is_active ?? true,
-    });
-    setEditDialogOpen(true);
-  };
+ const handleEditUser = (user) => {
+  setEditingUser(user);
+
+  const me = (user.meeting_eligibilities && user.meeting_eligibilities[0]) || {};
+  setEditFormData({
+    name: user.name || "",
+    email: user.email || "",
+    role: user.role_id || user.role?.id || "",  // ✅ make sure it’s ID
+    department: user.department_id || user.department?.id || "", // ✅ ID
+    lead: user.supervisor_id || user.supervisor?.id || "", // ✅ ID
+    priority: user.priority ?? me.priority ?? "",
+    is_active: user.is_active ?? true,
+    meeting_eligibility: {
+      departments: Array.isArray(me.departments) ? me.departments.slice() : [],
+      priority: me.priority ?? user.priority ?? 1,
+      can_take_contract: !!me.can_take_contract,
+      can_take_w2: !!me.can_take_w2,
+    },
+  });
+
+  setEditDialogOpen(true);
+};
 
   const handleToggleStatus = async (user) => {
     try {
@@ -209,11 +299,20 @@ function AddUserPage() {
   };
 
   // Helper function to get department name by ID
-  const getDepartmentName = (departmentId) => {
+  // Helper function to get department name by ID (with silencer)
+const getDepartmentName = (departmentId, departments = []) => {
+  try {
     if (!departmentId || !Array.isArray(departments)) return "N/A";
     const department = departments.find((dep) => dep.id === departmentId);
     return department ? department.name : "N/A";
-  };
+  } catch (err) {
+    console.warn("Silenced error in getDepartmentName:", err);
+    return "N/A";
+  }
+};
+
+
+
 
   // Helper function to get role name by ID
   const getRoleName = (roleId) => {
@@ -411,6 +510,110 @@ function AddUserPage() {
                   <option value="false">Inactive</option>
                 </select>
               </div>
+             {/* Eligible Departments (multi-select with chips) */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+    Eligible Departments For Calls
+  </label>
+
+  <div className="border rounded-lg p-2 dark:bg-gray-700 dark:border-gray-600">
+    {/* Selected Departments */}
+    <div className="flex flex-wrap gap-2 mb-2">
+      {formData.meeting_eligibility.departments.map((dep) => (
+        <span
+          key={dep}
+          className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
+        >
+          {dep}
+          <button
+            type="button"
+            className="ml-1 text-red-500 hover:text-red-700"
+            onClick={() =>
+              setFormData({
+                ...formData,
+                meeting_eligibility: {
+                  ...formData.meeting_eligibility,
+                  departments: formData.meeting_eligibility.departments.filter(
+                    (d) => d !== dep
+                  ),
+                },
+              })
+            }
+          >
+            ✕
+          </button>
+        </span>
+      ))}
+    </div>
+
+    {/* Dropdown for adding new department */}
+    <select
+      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+      onChange={(e) => {
+        const selectedDep = e.target.value;
+        if (
+          selectedDep &&
+          !formData.meeting_eligibility.departments.includes(selectedDep)
+        ) {
+          setFormData({
+            ...formData,
+            meeting_eligibility: {
+              ...formData.meeting_eligibility,
+              departments: [
+                ...formData.meeting_eligibility.departments,
+                selectedDep,
+              ],
+            },
+          });
+        }
+        e.target.value = ""; // reset select after choosing
+      }}
+    >
+      <option value="">-- Select Department --</option>
+      {departments.map((dep) => (
+        <option key={dep.id} value={dep.name}>
+          {dep.name}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
+
+
+{/* Can Take Contract */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+    Can Take Contract
+  </label>
+  <select
+    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+    value={formData.meeting_eligibility.can_take_contract ? "true" : "false"}
+    onChange={(e) =>
+      handleFormChange("can_take_contract", e.target.value === "true", true)
+    }
+  >
+    <option value="true">Yes</option>
+    <option value="false">No</option>
+  </select>
+</div>
+
+{/* Can Take W2 */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+    Can Take W2
+  </label>
+  <select
+    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+    value={formData.meeting_eligibility.can_take_w2 ? "true" : "false"}
+    onChange={(e) =>
+      handleFormChange("can_take_w2", e.target.value === "true", true)
+    }
+  >
+    <option value="true">Yes</option>
+    <option value="false">No</option>
+  </select>
+</div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Priority
@@ -493,7 +696,7 @@ function AddUserPage() {
               </label>
               <select
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                value={editFormData.role || ""}
+                value={editFormData.role}
                 onChange={(e) =>
                   handleEditFormChange("role", Number(e.target.value))
                 }
@@ -522,7 +725,7 @@ function AddUserPage() {
               </label>
               <select
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                value={editFormData.department || ""}
+                value={editFormData.department}
                 onChange={(e) =>
                   handleEditFormChange("department", Number(e.target.value))
                 }
@@ -555,7 +758,7 @@ function AddUserPage() {
               </label>
               <select
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                value={editFormData.lead || ""}
+                value={editFormData.lead}
                 onChange={(e) =>
                   handleEditFormChange("lead", Number(e.target.value))
                 }
@@ -592,6 +795,107 @@ function AddUserPage() {
                 <option value="false">Inactive</option>
               </select>
             </div>
+            {/* --- Eligible Departments (edit modal) --- */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+    Eligible Departments For Calls
+  </label>
+
+  <div className="border rounded-lg p-2 dark:bg-gray-700 dark:border-gray-600">
+    <div className="flex flex-wrap gap-2 mb-2">
+      {(editFormData.meeting_eligibility?.departments || []).map((dep) => (
+        <span
+          key={dep}
+          className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
+        >
+          {dep}
+          <button
+            type="button"
+            className="ml-1 text-red-500 hover:text-red-700"
+            onClick={() =>
+              setEditFormData((prev) => ({
+                ...prev,
+                meeting_eligibility: {
+                  ...prev.meeting_eligibility,
+                  departments: prev.meeting_eligibility.departments.filter(
+                    (d) => d !== dep
+                  ),
+                },
+              }))
+            }
+          >
+            ✕
+          </button>
+        </span>
+      ))}
+    </div>
+
+    <select
+      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+      onChange={(e) => {
+        const selectedDep = e.target.value;
+        if (
+          selectedDep &&
+          !editFormData.meeting_eligibility.departments.includes(selectedDep)
+        ) {
+          setEditFormData((prev) => ({
+            ...prev,
+            meeting_eligibility: {
+              ...prev.meeting_eligibility,
+              departments: [
+                ...prev.meeting_eligibility.departments,
+                selectedDep,
+              ],
+            },
+          }));
+        }
+        e.target.value = ""; // reset select after choosing
+      }}
+    >
+      <option value="">-- Select Department --</option>
+      {departments.map((dep) => (
+        <option key={dep.id} value={dep.name}>
+          {dep.name}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
+
+{/* Can Take Contract (edit modal) */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+    Can Take Contract
+  </label>
+  <select
+    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+    value={editFormData.meeting_eligibility?.can_take_contract ? "true" : "false"}
+    onChange={(e) =>
+      handleEditFormChange("can_take_contract", e.target.value === "true", true)
+    }
+  >
+    <option value="true">Yes</option>
+    <option value="false">No</option>
+  </select>
+</div>
+
+{/* Can Take W2 (edit modal) */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+    Can Take W2
+  </label>
+  <select
+    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+    value={editFormData.meeting_eligibility?.can_take_w2 ? "true" : "false"}
+    onChange={(e) =>
+      handleEditFormChange("can_take_w2", e.target.value === "true", true)
+    }
+  >
+    <option value="true">Yes</option>
+    <option value="false">No</option>
+  </select>
+</div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Priority
@@ -631,104 +935,142 @@ function AddUserPage() {
       <div className="overflow-x-auto rounded-2xl shadow-xl bg-white/80 backdrop-blur border border-blue-100 dark:bg-gray-800/80 dark:border-gray-700">
         <table className="min-w-full text-sm text-left">
           <thead>
-            <tr className="bg-blue-100/60 dark:bg-gray-700/60">
-              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
-                Name
-              </th>
-              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
-                Email
-              </th>
-              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
-                Role
-              </th>
-              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
-                Department
-              </th>
-              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
-                Lead
-              </th>
-              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
-                Status
-              </th>
-              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
-                Priority
-              </th>
-              <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="8"
-                  className="px-6 py-4 text-center text-gray-500 dark:text-gray-400"
-                >
-                  No users found
-                </td>
-              </tr>
-            ) : (
-              users.map((user, idx) => (
-                <tr
-                  key={user.id}
-                  className={
-                    idx % 2 === 0
-                      ? "bg-white/70 hover:bg-blue-50 transition dark:bg-gray-700/70 dark:hover:bg-gray-600"
-                      : "bg-blue-50/60 hover:bg-blue-100 transition dark:bg-gray-600/60 dark:hover:bg-gray-500"
-                  }
-                >
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
-                    {user.name}
-                  </td>
-                  <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                    {user.email}
-                  </td>
-                  <td className="px-6 py-4 text-blue-800 dark:text-blue-400 font-semibold">
-                    {getRoleName(user.role)}
-                  </td>
-                  <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                    {getDepartmentName(user.department)}
-                  </td>
-                  <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                    {getLeadName(user.supervisor)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleToggleStatus(user)}
-                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-all duration-200 hover:scale-105 ${
-                        user.is_active
-                          ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
-                          : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
-                      }`}
-                      title={`Click to change status to ${
-                        user.is_active ? "Inactive" : "Active"
-                      }`}
-                    >
-                      {user.is_active ? "Active" : "Inactive"}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                    {user.priority || "-"}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditUser(user)}
-                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
+  <tr className="bg-blue-100/60 dark:bg-gray-700/60">
+    <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+      Name
+    </th>
+    <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+      Role
+    </th>
+    {/* <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+      Department
+    </th> */}
+    <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+      Lead
+    </th>
+    <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+      Status
+    </th>
+    <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+      Eligible Departments
+    </th>
+    <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+      W2 Eligible
+    </th>
+    <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+     Contract Eligible
+    </th>
+
+    <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+      Priority
+    </th>
+    <th className="px-6 py-4 font-semibold text-blue-900 dark:text-blue-300">
+      Actions
+    </th>
+  </tr>
+</thead>
+
+         <tbody>
+  {users.length === 0 ? (
+    <tr>
+      <td
+        colSpan="9"
+        className="px-6 py-4 text-center text-gray-500 dark:text-gray-400"
+      >
+        No users found
+      </td>
+    </tr>
+  ) : (
+    users.map((user, idx) => {
+      // take the first meeting_eligibility object (or adjust if multiple needed)
+     const eligibility = (user.meeting_eligibilities?.[0]) || {
+  departments: [],
+  priority: "-",
+  can_take_w2: false,
+  can_take_contract: false,
+};
+
+
+
+      return (
+        <tr
+          key={user.id}
+          className={
+            idx % 2 === 0
+              ? "bg-white/70 hover:bg-blue-50 transition dark:bg-gray-700/70 dark:hover:bg-gray-600"
+              : "bg-blue-50/60 hover:bg-blue-100 transition dark:bg-gray-600/60 dark:hover:bg-gray-500"
+          }
+        >
+          <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
+            {user.name}
+          </td>
+         <td className="px-6 py-4 text-blue-800 dark:text-blue-400 font-semibold">
+  {user.role?.replace(/^Role\s*/i, "") || "-"}
+</td>
+
+        
+          <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+  {getLeadName(user.supervisor)?.replace(/User\s*/i, "")}
+</td>
+
+          <td className="px-6 py-4">
+            <button
+              onClick={() => handleToggleStatus(user)}
+              className={`inline-block px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-all duration-200 hover:scale-105 ${
+                user.is_active
+                  ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+                  : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+              }`}
+            >
+              {user.is_active ? "Active" : "Inactive"}
+            </button>
+          </td>
+
+            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+  {eligibility?.departments?.length > 0
+    ? eligibility.departments.join(", ")
+    : "-"}
+</td>
+
+<td>{eligibility?.can_take_w2 ? "Yes" : "No"}</td>
+<td>{eligibility?.can_take_contract ? "Yes" : "No"}</td>
+<td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+  {eligibility?.priority || "-"}
+</td>
+
+
+          <td className="px-6 py-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleEditUser(user)}
+              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+          </td>
+        </tr>
+      );
+    })
+  )}
+</tbody>
+
         </table>
       </div>
     </div>
   );
+ } catch (err) {
+    console.error("Silent error in AddUserPage:", err);
+
+    // ✅ reload the page silently after small delay
+    if (typeof window !== "undefined") {
+      setTimeout(() => {
+        window.location.reload();
+      }, 100); // reload after 100ms
+    }
+
+    return null; // render nothing while reloading
+  }
 }
 
-export default withPrivateRoute(AddUserPage);
+

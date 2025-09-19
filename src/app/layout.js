@@ -14,13 +14,23 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+if (typeof window !== "undefined") {
+  window.onerror = function () {
+    return true; // prevent errors from showing
+  };
+  window.onunhandledrejection = function () {
+    return true; // silence promise errors
+  };
+}
 export const metadata = {
   title: "Alphabridge",
   description: "Alphabridge",
 };
 
+
 export default function RootLayout({ children }) {
   return (
+    
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

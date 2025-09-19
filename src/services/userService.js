@@ -1,5 +1,5 @@
 // userService.js
-
+import { getAccessToken } from './loginService';
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 const API_AUTH_URL = 'http://127.0.0.1:8000/auth';
 
@@ -42,31 +42,35 @@ export const fetchAllUsers = async () => {
 };
 
 // Add a new user
+// Add a new user
 export const addUser = async (userData) => {
-  // Transform the data to match the API payload structure
-  const payload = {
-    name: userData.name,
-    email: userData.email,
-    password: userData.password || 'defaultPassword123', // You might want to add password field to the form
-    role_id: userData.role,
-    department_id: userData.department,
-    supervisor_id: userData.lead,
-    priority: userData.priority
-  };
+  console.log("addUser -> payload:", userData);
 
   const response = await fetch(`${API_AUTH_URL}/register/`, {
-    method: 'POST',
+    method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(userData),
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to register user');
+  const text = await response.text();
+  try {
+    const json = text ? JSON.parse(text) : {};
+    if (!response.ok) {
+      console.error("addUser failed:", response.status, json || text);
+      throw new Error(json.detail || json.message || `Register failed (status ${response.status})`);
+    }
+    console.log("addUser success:", json);
+    return json;
+  } catch (err) {
+    console.error("addUser parse/error:", err, "raw:", text);
+    throw err;
   }
-
-  return response.json();
 };
+
+
+
+
+
 
 // Update an existing user
 export const updateUser = async (userId, userData) => {
