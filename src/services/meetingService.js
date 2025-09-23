@@ -45,7 +45,7 @@ export const addMeeting = async (meetingData) => {
     department: meetingData.department,
     to_id: meetingData.assignee?.id,
     cc_ids: (meetingData.cc_members || []).map(m => m.id),
-    remarks: meetingData.remarks || '',
+    // remarks: meetingData.remarks || '',
     jd_link: meetingData.jd_link || '',
     resume_link: meetingData.resume_link || '',
   };
