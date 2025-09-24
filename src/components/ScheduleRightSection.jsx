@@ -81,6 +81,7 @@ export default function ScheduleRightSection({ selectedDate }) {
   const [remarksEditMode, setRemarksEditMode] = React.useState(false);
   const [remarksText, setRemarksText] = React.useState("");
   const [savingRemarks, setSavingRemarks] = React.useState(false);
+  const [participantRemarks, setParticipantRemarks] = React.useState({});
 
   // Fetch users and departments from API on mount
   React.useEffect(() => {
@@ -1239,7 +1240,6 @@ export default function ScheduleRightSection({ selectedDate }) {
                     </div>
                   )}
                 </div> */}
-
                 <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
   <div className="flex items-center justify-between mb-3">
     <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
@@ -1262,32 +1262,47 @@ export default function ScheduleRightSection({ selectedDate }) {
 
   {remarksEditMode ? (
     <div className="space-y-6">
-      {/* Primary Assignee Remarks */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          Primary Assignee Remarks
-        </label>
-        <textarea
-          className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
-          value={primaryRemarksText}
-          onChange={(e) => setPrimaryRemarksText(e.target.value)}
-          placeholder="Enter remarks for Primary Assignee..."
-        />
-      </div>
+      {/* Primary Assignee Input */}
+      {selectedMeeting.assignee && (
+        <div key={selectedMeeting.assignee.id}>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            {selectedMeeting.assignee.name} (Primary Assignee)
+          </label>
+          <textarea
+            className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
+            value={participantRemarks[selectedMeeting.assignee.id] || ""}
+            onChange={(e) =>
+              setParticipantRemarks((prev) => ({
+                ...prev,
+                [selectedMeeting.assignee.id]: e.target.value,
+              }))
+            }
+            placeholder={`Enter remarks for ${selectedMeeting.assignee.name}...`}
+          />
+        </div>
+      )}
 
-      {/* CC Members Remarks */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          CC Members Remarks
-        </label>
-        <textarea
-          className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
-          value={ccRemarksText}
-          onChange={(e) => setCcRemarksText(e.target.value)}
-          placeholder="Enter remarks for CC Members..."
-        />
-      </div>
+      {/* CC Members Inputs */}
+      {selectedMeeting.cc_members?.map((m) => (
+        <div key={m.id}>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            {m.name} (CC Member)
+          </label>
+          <textarea
+            className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
+            value={participantRemarks[m.id] || ""}
+            onChange={(e) =>
+              setParticipantRemarks((prev) => ({
+                ...prev,
+                [m.id]: e.target.value,
+              }))
+            }
+            placeholder={`Enter remarks for ${m.name}...`}
+          />
+        </div>
+      ))}
 
+      {/* Save + Cancel */}
       <div className="flex gap-2">
         <Button
           size="sm"
@@ -1320,21 +1335,34 @@ export default function ScheduleRightSection({ selectedDate }) {
     </div>
   ) : (
     <div className="space-y-4 bg-white/80 dark:bg-gray-700/80 rounded-lg p-4">
-      <div>
-        <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">Primary Assignee Remarks</h4>
-        <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-          {selectedMeeting.primaryRemarks || "No remarks added yet."}
+      {/* Primary Assignee Display */}
+      {selectedMeeting.assignee && (
+        <div>
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
+            {selectedMeeting.assignee.name} (Primary Assignee)
+          </h4>
+          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+            {participantRemarks[selectedMeeting.assignee.id] ||
+              "No remarks added yet."}
+          </div>
         </div>
-      </div>
-      <div>
-        <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">CC Members Remarks</h4>
-        <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-          {selectedMeeting.ccRemarks || "No remarks added yet."}
+      )}
+
+      {/* CC Members Display */}
+      {selectedMeeting.cc_members?.map((m) => (
+        <div key={m.id}>
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
+            {m.name} (CC Member)
+          </h4>
+          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+            {participantRemarks[m.id] || "No remarks added yet."}
+          </div>
         </div>
-      </div>
+      ))}
     </div>
   )}
 </div>
+
 
               </div>
 
