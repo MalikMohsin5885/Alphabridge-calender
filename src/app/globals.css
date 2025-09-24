@@ -111,6 +111,27 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+@layer utilities {
+  .bg-time-grid {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      #e5e7eb 0px,
+      #e5e7eb 1px,
+      transparent 1px,
+      transparent 48px /* 48px = h-12 slot height */
+    );
+  }
+
+  .dark .bg-time-grid {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      #374151 0px, /* gray-700 for dark mode */
+      #374151 1px,
+      transparent 1px,
+      transparent 48px
+    );
+  }
+}
 
 @layer base {
   * {

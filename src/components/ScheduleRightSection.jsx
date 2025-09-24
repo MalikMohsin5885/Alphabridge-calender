@@ -157,6 +157,16 @@ export default function ScheduleRightSection({ selectedDate }) {
     return department ? department.name : "N/A";
   };
 
+  React.useEffect(() => {
+  const now = new Date();
+  const currentIndex = getSlotIndex(
+    `${now.getHours()}:${now.getMinutes().toString().padStart(2, "0")}`
+  );
+  const el = document.querySelector(".time-grid-scroll"); // add class to scroll container
+  if (el) {
+    el.scrollTop = currentIndex * 48; // slot height
+  }
+}, []);
   // Fetch meetings for the selected date
   React.useEffect(() => {
     console.log("Selected date changed:", selectedDate); // Debug log
@@ -820,11 +830,11 @@ export default function ScheduleRightSection({ selectedDate }) {
             )}
           </div>
           {/* Time grid */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            <div
-              className="grid grid-cols-[60px_1fr] relative"
-              style={{ minHeight: "600px" }}
-            >
+           <div className="flex-1 overflow-y-auto px-6 py-4">
+  <div
+    className="grid grid-cols-[60px_1fr] relative"
+    style={{ height: "600px" }} // viewport height
+  >
               {/* Time slots */}
               <div className="flex flex-col">
                 {/* Timezone labels at the top */}
@@ -853,16 +863,9 @@ export default function ScheduleRightSection({ selectedDate }) {
                 })}
               </div>
               {/* Meeting grid */}
-              <div className="relative overflow-x-auto">
+              <div className="relative overflow-x-auto bg-time-grid">
                 <div style={{ width: containerWidth, minWidth: "100%" }}>
-                  {/* Time slot lines */}
-                  {TIME_SLOTS.map((slot, idx) => (
-                    <div
-                      key={slot}
-                      className="h-12 border-t border-gray-200 w-full absolute left-0 dark:border-gray-700"
-                      style={{ top: `${idx * 48}px`, zIndex: 0 }}
-                    />
-                  ))}
+                 
                   {/* Meeting boxes */}
                   {meetings.map((meeting) => {
                     const top = (getSlotIndex(meeting.start) + 1) * 48;
@@ -1171,7 +1174,7 @@ export default function ScheduleRightSection({ selectedDate }) {
                 </div>
 
                 {/* Remarks Section */}
-                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
+                {/* <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
                   <div className="flex items-center justify-between mb-3">
                     <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                       <FileText className="w-4 h-4 text-yellow-500" />
@@ -1235,7 +1238,104 @@ export default function ScheduleRightSection({ selectedDate }) {
                       </div>
                     </div>
                   )}
-                </div>
+                </div> */}
+
+                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
+  <div className="flex items-center justify-between mb-3">
+    <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+      <FileText className="w-4 h-4 text-yellow-500" />
+      Meeting Remarks
+    </label>
+    {!remarksEditMode &&
+      (user?.role === "Member" || user?.role === "Closer") && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={startRemarksEdit}
+          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+        >
+          <Pencil className="w-3 h-3 mr-1" />
+          Edit
+        </Button>
+      )}
+  </div>
+
+  {remarksEditMode ? (
+    <div className="space-y-6">
+      {/* Primary Assignee Remarks */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          Primary Assignee Remarks
+        </label>
+        <textarea
+          className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
+          value={primaryRemarksText}
+          onChange={(e) => setPrimaryRemarksText(e.target.value)}
+          placeholder="Enter remarks for Primary Assignee..."
+        />
+      </div>
+
+      {/* CC Members Remarks */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          CC Members Remarks
+        </label>
+        <textarea
+          className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
+          value={ccRemarksText}
+          onChange={(e) => setCcRemarksText(e.target.value)}
+          placeholder="Enter remarks for CC Members..."
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="default"
+          onClick={handleSaveRemarks}
+          disabled={savingRemarks}
+          className="flex items-center gap-1 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+        >
+          {savingRemarks ? (
+            <>
+              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Saving...
+            </>
+          ) : (
+            <>
+              <Check className="w-3 h-3" />
+              Save
+            </>
+          )}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={cancelRemarksEdit}
+          disabled={savingRemarks}
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
+  ) : (
+    <div className="space-y-4 bg-white/80 dark:bg-gray-700/80 rounded-lg p-4">
+      <div>
+        <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">Primary Assignee Remarks</h4>
+        <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+          {selectedMeeting.primaryRemarks || "No remarks added yet."}
+        </div>
+      </div>
+      <div>
+        <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">CC Members Remarks</h4>
+        <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+          {selectedMeeting.ccRemarks || "No remarks added yet."}
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+
               </div>
 
               {/* Close Button */}

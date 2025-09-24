@@ -4,26 +4,38 @@ import moment from 'moment-timezone';
 
 // Schedule utilities and layout helpers
 
+// export const TIME_SLOTS = (() => {
+//   const slots = [];
+//   let hour = 17; // 5 PM
+//   let minute = 0;
+//   while (!(hour === 2 && minute === 30)) {
+//     const h = hour % 24;
+//     const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+//     const ampm = h >= 12 ? 'PM' : 'AM';
+//     slots.push(`${displayHour}:${minute === 0 ? '00' : '30'} ${ampm}`);
+//     if (minute === 0) {
+//       minute = 30;
+//     } else {
+//       minute = 0;
+//       hour = (hour + 1) % 24;
+//     }
+//     // Stop at 2:00 AM
+//     if (h === 2 && minute === 0) break;
+//   }
+//   return slots;
+// })();
 export const TIME_SLOTS = (() => {
   const slots = [];
-  let hour = 17; // 5 PM
-  let minute = 0;
-  while (!(hour === 2 && minute === 30)) {
-    const h = hour % 24;
-    const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    const ampm = h >= 12 ? 'PM' : 'AM';
+  for (let i = 0; i < 48; i++) {
+    const hour = Math.floor(i / 2);
+    const minute = i % 2 === 0 ? 0 : 30;
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
     slots.push(`${displayHour}:${minute === 0 ? '00' : '30'} ${ampm}`);
-    if (minute === 0) {
-      minute = 30;
-    } else {
-      minute = 0;
-      hour = (hour + 1) % 24;
-    }
-    // Stop at 2:00 AM
-    if (h === 2 && minute === 0) break;
   }
   return slots;
 })();
+
 // export const TIME_SLOTS = (() => {
 //   const slots = [];
 //   for (let hour = 9; hour <= 17; hour++) {
@@ -49,14 +61,27 @@ export const MEETING_BOX_GAP = 16; // px
 //   return (hour - base) * 2 + (m === 30 ? 1 : 0);
 // };
 
-export const getSlotIndex = (time) => {
-  const [h, m] = time.split(':').map(Number);
-  let hour = h;
-  if (hour < 8) hour += 24;
+// 
 
-  const base = 8; // 8:00 AM is slot 0 in EST
-  return (hour - base) * 2 + (m >= 30 ? 1 : 0);
+export const getSlotIndex = (time) => {
+  // Supports "HH:mm" (24h) or "h:mm AM/PM"
+  const m = String(time).trim().match(/^(\d{1,2}):(\d{2})(?:\s*([AaPp][Mm]))?$/);
+  if (!m) return 0;
+
+  let hour = parseInt(m[1], 10);
+  const minutes = parseInt(m[2], 10);
+  const ampm = m[3];
+
+  // Convert to 24h
+  if (ampm) {
+    const up = ampm.toUpperCase();
+    if (up === "PM" && hour !== 12) hour += 12;
+    if (up === "AM" && hour === 12) hour = 0;
+  }
+
+  return hour * 2 + (minutes >= 30 ? 1 : 0);
 };
+
 
 export const meetingsOverlap = (meeting1, meeting2) => {
   const start1 = getSlotIndex(meeting1.start);
