@@ -82,7 +82,9 @@ export default function ScheduleRightSection({ selectedDate }) {
   const [remarksText, setRemarksText] = React.useState("");
   const [savingRemarks, setSavingRemarks] = React.useState(false);
   const [participantRemarks, setParticipantRemarks] = React.useState({});
-
+  const isCurrentUser = (email) => {
+  return email === user?.email;
+};
   // Fetch users and departments from API on mount
   React.useEffect(() => {
     const loadData = async () => {
@@ -1240,30 +1242,18 @@ export default function ScheduleRightSection({ selectedDate }) {
                     </div>
                   )}
                 </div> */}
-                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
+<div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
   <div className="flex items-center justify-between mb-3">
     <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
       <FileText className="w-4 h-4 text-yellow-500" />
       Meeting Remarks
     </label>
-    {!remarksEditMode &&
-      (user?.role === "Member" || user?.role === "Closer") && (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={startRemarksEdit}
-          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-        >
-          <Pencil className="w-3 h-3 mr-1" />
-          Edit
-        </Button>
-      )}
   </div>
 
   {remarksEditMode ? (
     <div className="space-y-6">
       {/* Primary Assignee Input */}
-      {selectedMeeting.assignee && (
+      {selectedMeeting.assignee && isCurrentUser(selectedMeeting.assignee.email) && (
         <div key={selectedMeeting.assignee.id}>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
             {selectedMeeting.assignee.name} (Primary Assignee)
@@ -1282,25 +1272,27 @@ export default function ScheduleRightSection({ selectedDate }) {
         </div>
       )}
 
-      {/* CC Members Inputs */}
-      {selectedMeeting.cc_members?.map((m) => (
-        <div key={m.id}>
-          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            {m.name} (CC Member)
-          </label>
-          <textarea
-            className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
-            value={participantRemarks[m.id] || ""}
-            onChange={(e) =>
-              setParticipantRemarks((prev) => ({
-                ...prev,
-                [m.id]: e.target.value,
-              }))
-            }
-            placeholder={`Enter remarks for ${m.name}...`}
-          />
-        </div>
-      ))}
+      {/* Other Participants Inputs */}
+      {selectedMeeting.other_participants?.map((p) =>
+        isCurrentUser(p.user.email) ? (
+          <div key={p.user.id}>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              {p.user.name} (Participant)
+            </label>
+            <textarea
+              className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
+              value={participantRemarks[p.user.id] || ""}
+              onChange={(e) =>
+                setParticipantRemarks((prev) => ({
+                  ...prev,
+                  [p.user.id]: e.target.value,
+                }))
+              }
+              placeholder={`Enter remarks for ${p.user.name}...`}
+            />
+          </div>
+        ) : null
+      )}
 
       {/* Save + Cancel */}
       <div className="flex gap-2">
@@ -1335,33 +1327,56 @@ export default function ScheduleRightSection({ selectedDate }) {
     </div>
   ) : (
     <div className="space-y-4 bg-white/80 dark:bg-gray-700/80 rounded-lg p-4">
-      {/* Primary Assignee Display */}
+      {/* Display Remarks */}
       {selectedMeeting.assignee && (
-        <div>
-          <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
-            {selectedMeeting.assignee.name} (Primary Assignee)
-          </h4>
-          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-            {participantRemarks[selectedMeeting.assignee.id] ||
-              "No remarks added yet."}
+        <div className="flex justify-between items-start">
+          <div>
+            <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
+              {selectedMeeting.assignee.name} (Primary Assignee)
+            </h4>
+            <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+              {participantRemarks[selectedMeeting.assignee.id] || "No remarks added yet."}
+            </div>
           </div>
+          {isCurrentUser(selectedMeeting.assignee.email) && !remarksEditMode && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={startRemarksEdit}
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 ml-2"
+            >
+              <Pencil className="w-3 h-3" />
+            </Button>
+          )}
         </div>
       )}
 
-      {/* CC Members Display */}
-      {selectedMeeting.cc_members?.map((m) => (
-        <div key={m.id}>
-          <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
-            {m.name} (CC Member)
-          </h4>
-          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-            {participantRemarks[m.id] || "No remarks added yet."}
+      {selectedMeeting.other_participants?.map((p) => (
+        <div key={p.user.id} className="flex justify-between items-start">
+          <div>
+            <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
+              {p.user.name} (Participant)
+            </h4>
+            <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+              {participantRemarks[p.user.id] || "No remarks added yet."}
+            </div>
           </div>
+          {isCurrentUser(p.user.email) && !remarksEditMode && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={startRemarksEdit}
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 ml-2"
+            >
+              <Pencil className="w-3 h-3" />
+            </Button>
+          )}
         </div>
       ))}
     </div>
   )}
 </div>
+
 
 
               </div>
