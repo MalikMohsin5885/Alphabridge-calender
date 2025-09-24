@@ -65,6 +65,9 @@ export default function ScheduleRightSection({ selectedDate }) {
   const [closers, setClosers] = React.useState([]);
   const [allDepartments, setAllDepartments] = React.useState([]);
   const [isCreatingMeeting, setIsCreatingMeeting] = React.useState(false);
+  const [descriptionEditMode, setDescriptionEditMode] = React.useState(false);
+const [editedDescription, setEditedDescription] = React.useState(selectedMeeting?.description || "");
+
   const [addForm, setAddForm] = React.useState({
     title: "",
     description: "",
@@ -1163,18 +1166,65 @@ export default function ScheduleRightSection({ selectedDate }) {
               {/* Description & Remarks Section */}
               <div className="space-y-4">
                 {/* Description */}
+                {/* Description */}
                 <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100/50 dark:border-gray-700/50">
-                  <label className="block text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-gray-500" />
-                    Description
-                  </label>
-                  <div className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-4">
-                    <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-                      {selectedMeeting.description ||
-                        "No description provided."}
-                    </div>
-                  </div>
-                </div>
+  <div className="flex items-center justify-between mb-3">
+    <label className="block text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
+      <FileText className="w-4 h-4 text-gray-500" />
+      Description
+    </label>
+    {user?.role === "BD" && selectedMeeting && !descriptionEditMode && (
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => setDescriptionEditMode(true)}
+        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+      >
+        <Pencil className="w-3 h-3" />
+      </Button>
+    )}
+  </div>
+
+  {descriptionEditMode ? (
+    <div className="space-y-2">
+      <textarea
+        className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
+        value={editedDescription}
+        onChange={(e) => setEditedDescription(e.target.value)}
+        placeholder="Enter description..."
+      />
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="default"
+          onClick={() => {
+            selectedMeeting.description = editedDescription; // local update
+            setDescriptionEditMode(false);
+          }}
+        >
+          <Check className="w-3 h-3" /> Save
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setEditedDescription(selectedMeeting?.description || "");
+            setDescriptionEditMode(false);
+          }}
+        >
+          <X className="w-3 h-3" /> Cancel
+        </Button>
+      </div>
+    </div>
+  ) : (
+    <div className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-4">
+      <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+        {selectedMeeting?.description || "No description provided."}
+      </div>
+    </div>
+  )}
+</div>
+
 
                 {/* Remarks Section */}
                 {/* <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
