@@ -1639,7 +1639,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                       ))}
                   </select>
                 </div>
-                <div className="flex items-start gap-2 mb-2">
+                {/* <div className="flex items-start gap-2 mb-2">
                   <FileText className="w-4 h-4 text-gray-400 mt-1" />
                   <textarea
                     className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none min-h-[60px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
@@ -1662,7 +1662,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                     }
                     placeholder="General meeting remarks from any participant"
                   />
-                </div>
+                </div> */}
                 <div className="flex gap-4 mb-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">

@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Pencil } from "lucide-react";
@@ -21,7 +22,7 @@ import {
 import withPrivateRoute from "../../../components/withPrivateRoute";
 
 export default function AddUserPage() {
-   try {
+   
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -30,13 +31,13 @@ export default function AddUserPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [formData, setFormData] = useState({
+  const emptyForm = {
   name: "",
   email: "",
   password: "",
-  role: "",
-  department: "",
-  lead: "",
+  role_id: "",
+  department_id: "",
+  supervisor_id: "",
   is_active: true,
   priority: "",
   meeting_eligibility: {
@@ -45,37 +46,41 @@ export default function AddUserPage() {
     can_take_contract: false,
     can_take_w2: false,
   },
-});
+};
 
-  const [editFormData, setEditFormData] = useState({
-  name: "",
-  email: "",
-  role: "",
-  department: "",
-  lead: "",
-  priority: "",
-  is_active: true,
-  // match Add User shape
-  meeting_eligibility: {
-    departments: [],
-    priority: 1,
-    can_take_contract: false,
-    can_take_w2: false,
-  },
-});
+
+const [formData, setFormData] = useState(emptyForm);
+
+//   const [formData, setFormData] = useState({
+//   name: "",
+//   email: "",
+//   password: "",
+//   role: "",
+//   department: "",
+//   lead: "",
+//   is_active: true,
+//   priority: "",
+//   meeting_eligibility: {
+//     departments: [],
+//     priority: 1,
+//     can_take_contract: false,
+//     can_take_w2: false,
+//   },
+// });
+
+  const [editFormData, setEditFormData] = useState(emptyForm);
+
   const [submitting, setSubmitting] = useState(false);
   const [editing, setEditing] = useState(false);
 
-  useEffect(() => {
-    // if departments is missing or undefined -> reload page
-    if (!departments) {
-      window.location.reload();
-    }
-  }, [departments]);
+  // useEffect(() => {
+  //   // if departments is missing or undefined -> reload page
+  //   if (!departments) {
+  //     window.location.reload();
+  //   }
+  // }, [departments]);
 
-  if (!departments) {
-    return <div>Loading...</div>; // fallback before reload kicks in
-  }
+  
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -118,10 +123,10 @@ export default function AddUserPage() {
     loadData();
   }, []);
 
-  if (typeof departments === "undefined") {
-      console.warn("departments is undefined — bypassing");
-      return null; // or return a loader/spinner instead
-    }
+  // if (typeof departments === "undefined") {
+  //     console.warn("departments is undefined — bypassing");
+  //     return null; // or return a loader/spinner instead
+  //   }
 
   const handleFormChange = (field, value, nested = false) => {
   if (nested) {
@@ -161,9 +166,9 @@ export default function AddUserPage() {
   name: formData.name,
   email: formData.email,
   password: formData.password,
-  role_id: formData.role,
-  department_id: formData.department,
-  supervisor_id: formData.lead,
+  role_id: formData.role_id,
+  department_id: formData.department_id,
+  supervisor_id: formData.supervisor_id,
   is_active: formData.is_active,
   meeting_eligibility: {
     departments: formData.meeting_eligibility.departments,
@@ -205,27 +210,24 @@ export default function AddUserPage() {
 
     try {
      // Replace existing updateUser(...) call inside handleEditSubmit with this payload:
-await updateUser(editingUser.id, {
+     await updateUser(editingUser.id, {
   name: editFormData.name,
   email: editFormData.email,
-  role: editFormData.role,
-  department: editFormData.department,
-  supervisor: editFormData.lead,
+  role_id: editFormData.role_id,
+  department_id: editFormData.department_id,
+  supervisor_id: editFormData.supervisor_id,
   priority: editFormData.priority,
   is_active: editFormData.is_active,
-  // send meeting_eligibilities as an array (backend uses array in your users)
   meeting_eligibilities: [
     {
       departments: editFormData.meeting_eligibility?.departments || [],
-      priority:
-        editFormData.meeting_eligibility?.priority ??
-        editFormData.priority ??
-        1,
+      priority: editFormData.meeting_eligibility?.priority ?? 1,
       can_take_contract: !!editFormData.meeting_eligibility?.can_take_contract,
       can_take_w2: !!editFormData.meeting_eligibility?.can_take_w2,
     },
   ],
 });
+
 
 
       // Refresh the users list
@@ -254,24 +256,30 @@ await updateUser(editingUser.id, {
   };
 
  const handleEditUser = (user) => {
-  setEditingUser(user);
+  const dept = departments.find((d) => d.id === user.department_id);
 
+  const role = roles.find((r) => r.name === user.role);
+  const lead = leads.find((l) => l.name === user.supervisor);
+  setEditingUser(user);
+  // user.department_id || user.department?.id||
+  //user.role_id || user.role?.id
   const me = (user.meeting_eligibilities && user.meeting_eligibilities[0]) || {};
   setEditFormData({
-    name: user.name || "",
-    email: user.email || "",
-    role: user.role_id || user.role?.id || "",  // ✅ make sure it’s ID
-    department: user.department_id || user.department?.id || "", // ✅ ID
-    lead: user.supervisor_id || user.supervisor?.id || "", // ✅ ID
-    priority: user.priority ?? me.priority ?? "",
-    is_active: user.is_active ?? true,
-    meeting_eligibility: {
-      departments: Array.isArray(me.departments) ? me.departments.slice() : [],
-      priority: me.priority ?? user.priority ?? 1,
-      can_take_contract: !!me.can_take_contract,
-      can_take_w2: !!me.can_take_w2,
-    },
-  });
+  name: user.name || "",
+  email: user.email || "",
+  role_id: role ? role.id : "",
+  department_id: dept ? dept.id : "",
+  supervisor_id: lead ? lead.id : "",
+  priority: user.priority ?? me.priority ?? "",
+  is_active: user.is_active ?? true,
+  meeting_eligibility: {
+    departments: Array.isArray(me.departments) ? [...me.departments] : [],
+    priority: me.priority ?? user.priority ?? 1,
+    can_take_contract: !!me.can_take_contract,
+    can_take_w2: !!me.can_take_w2,
+  },
+});
+
 
   setEditDialogOpen(true);
 };
@@ -367,7 +375,7 @@ const getDepartmentName = (departmentId, departments = []) => {
                   type="text"
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                   placeholder="Enter name"
-                  value={formData.name}
+                  value={formData.name ?? ""}
                   onChange={(e) => handleFormChange("name", e.target.value)}
                   required
                 />
@@ -380,7 +388,7 @@ const getDepartmentName = (departmentId, departments = []) => {
                   type="email"
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                   placeholder="Enter email"
-                  value={formData.email}
+                  value={formData.email ?? ""}
                   onChange={(e) => handleFormChange("email", e.target.value)}
                   required
                 />
@@ -393,7 +401,7 @@ const getDepartmentName = (departmentId, departments = []) => {
                   type="password"
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                   placeholder="Enter password"
-                  value={formData.password}
+                  value={formData.password ?? ""}
                   onChange={(e) => handleFormChange("password", e.target.value)}
                   required
                 />
@@ -405,24 +413,18 @@ const getDepartmentName = (departmentId, departments = []) => {
                     <span className="text-red-500 ml-1">*</span>
                   )}
                 </label>
-                <select
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                  value={formData.role}
-                  onChange={(e) =>
-                    handleFormChange("role", Number(e.target.value))
-                  }
-                  required
-                  disabled={roles.length === 0}
-                >
-                  <option value="">
-                    {roles.length === 0 ? "Loading roles..." : "Select role..."}
-                  </option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
+                 <select
+  value={formData.role_id ?? ""}
+  onChange={(e) => handleFormChange("role_id", Number(e.target.value))}
+>
+  <option value="">Select a role</option>
+  {roles.map((role) => (
+    <option key={role.id} value={role.id}>
+      {role.name}
+    </option>
+  ))}
+</select>
+
                 {roles.length === 0 && !loading && (
                   <p className="text-xs text-red-500 mt-1">
                     No roles available
@@ -437,25 +439,17 @@ const getDepartmentName = (departmentId, departments = []) => {
                   )}
                 </label>
                 <select
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                  value={formData.department}
-                  onChange={(e) =>
-                    handleFormChange("department", Number(e.target.value))
-                  }
-                  required
-                  disabled={departments.length === 0}
-                >
-                  <option value="">
-                    {departments.length === 0
-                      ? "Loading departments..."
-                      : "Select department..."}
-                  </option>
-                  {departments.map((dep) => (
-                    <option key={dep.id} value={dep.id}>
-                      {dep.name}
-                    </option>
-                  ))}
-                </select>
+  value={formData.department_id ?? ""}
+  onChange={(e) => handleFormChange("department_id", Number(e.target.value))}
+>
+  <option value="">Select a department</option>
+  {departments.map((dept) => (
+    <option key={dept.id} value={dept.id}>
+      {dept.name}
+    </option>
+  ))}
+</select>
+
                 {departments.length === 0 && !loading && (
                   <p className="text-xs text-red-500 mt-1">
                     No departments available
@@ -469,26 +463,18 @@ const getDepartmentName = (departmentId, departments = []) => {
                     <span className="text-red-500 ml-1">*</span>
                   )}
                 </label>
-                <select
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                  value={formData.lead}
-                  onChange={(e) =>
-                    handleFormChange("lead", Number(e.target.value))
-                  }
-                  required
-                  disabled={leads.length === 0}
-                >
-                  <option value="">
-                    {leads.length === 0
-                      ? "Loading Leads..."
-                      : "Select lead..."}
-                  </option>
-                  {leads.map((lead) => (
-                    <option key={lead.id} value={lead.id}>
-                      {lead.name}
-                    </option>
-                  ))}
-                </select>
+              <select
+  value={formData.supervisor_id ?? ""}
+  onChange={(e) => handleFormChange("supervisor_id", Number(e.target.value))}
+>
+  <option value="">Select a supervisor</option>
+  {users.map((user) => (
+    <option key={user.id} value={user.id}>
+      {user.name}
+    </option>
+  ))}
+</select>
+
                 {leads.length === 0 && !loading && (
                   <p className="text-xs text-red-500 mt-1">
                     No Leads available
@@ -501,7 +487,7 @@ const getDepartmentName = (departmentId, departments = []) => {
                 </label>
                 <select
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                  value={formData.is_active ? "true" : "false"}
+                  value={formData.is_active ? "true" : "false" ?? ""}
                   onChange={(e) =>
                     handleFormChange("is_active", e.target.value === "true")
                   }
@@ -519,32 +505,32 @@ const getDepartmentName = (departmentId, departments = []) => {
   <div className="border rounded-lg p-2 dark:bg-gray-700 dark:border-gray-600">
     {/* Selected Departments */}
     <div className="flex flex-wrap gap-2 mb-2">
-      {formData.meeting_eligibility.departments.map((dep) => (
-        <span
-          key={dep}
-          className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
+    {(formData.meeting_eligibility?.departments ?? []).map((dep) => (
+      <span
+        key={dep}
+        className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
+      >
+        {dep}
+        <button
+          type="button"
+          className="ml-1 text-red-500 hover:text-red-700"
+          onClick={() =>
+            setFormData({
+              ...formData,
+              meeting_eligibility: {
+                ...formData.meeting_eligibility,
+                departments: (formData.meeting_eligibility?.departments ?? []).filter(
+                  (d) => d !== dep
+                ),
+              },
+            })
+          }
         >
-          {dep}
-          <button
-            type="button"
-            className="ml-1 text-red-500 hover:text-red-700"
-            onClick={() =>
-              setFormData({
-                ...formData,
-                meeting_eligibility: {
-                  ...formData.meeting_eligibility,
-                  departments: formData.meeting_eligibility.departments.filter(
-                    (d) => d !== dep
-                  ),
-                },
-              })
-            }
-          >
-            ✕
-          </button>
-        </span>
-      ))}
-    </div>
+          ✕
+        </button>
+      </span>
+    ))}
+  </div>
 
     {/* Dropdown for adding new department */}
     <select
@@ -587,7 +573,11 @@ const getDepartmentName = (departmentId, departments = []) => {
   </label>
   <select
     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-    value={formData.meeting_eligibility.can_take_contract ? "true" : "false"}
+    value={
+  formData.meeting_eligibility?.can_take_contract
+    ? "true"
+    : "false"
+}
     onChange={(e) =>
       handleFormChange("can_take_contract", e.target.value === "true", true)
     }
@@ -604,7 +594,12 @@ const getDepartmentName = (departmentId, departments = []) => {
   </label>
   <select
     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-    value={formData.meeting_eligibility.can_take_w2 ? "true" : "false"}
+    value={
+  formData.meeting_eligibility?.can_take_w2
+    ? "true"
+    : "false"
+}
+
     onChange={(e) =>
       handleFormChange("can_take_w2", e.target.value === "true", true)
     }
@@ -624,7 +619,7 @@ const getDepartmentName = (departmentId, departments = []) => {
                   max="100"
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                   placeholder="Enter priority (1-100)"
-                  value={formData.priority}
+                  value={formData.priority ?? ""}
                   onChange={(e) =>
                     handleFormChange("priority", Number(e.target.value))
                   }
@@ -668,7 +663,7 @@ const getDepartmentName = (departmentId, departments = []) => {
                 type="text"
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                 placeholder="Enter name"
-                value={editFormData.name || ""}
+                value={editFormData.name ?? ""}
                 onChange={(e) => handleEditFormChange("name", e.target.value)}
                 required
               />
@@ -681,7 +676,7 @@ const getDepartmentName = (departmentId, departments = []) => {
     type="email"
     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
     placeholder="Enter email"
-    value={editFormData.email || ""}
+    value={editFormData.email ?? ""}
     onChange={(e) => handleEditFormChange("email", e.target.value)}
     required
   />
@@ -696,10 +691,9 @@ const getDepartmentName = (departmentId, departments = []) => {
               </label>
               <select
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                value={editFormData.role}
-                onChange={(e) =>
-                  handleEditFormChange("role", Number(e.target.value))
-                }
+                value={editFormData.role_id ?? ""}
+onChange={(e) => handleEditFormChange("role_id", Number(e.target.value))}
+
                 required
                 disabled={roles.length === 0}
               >
@@ -723,26 +717,34 @@ const getDepartmentName = (departmentId, departments = []) => {
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </label>
-              <select
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                value={editFormData.department}
-                onChange={(e) =>
-                  handleEditFormChange("department", Number(e.target.value))
-                }
-                required
-                disabled={departments.length === 0}
-              >
-                <option value="">
-                  {departments.length === 0
-                    ? "Loading departments..."
-                    : "Select department..."}
-                </option>
-                {departments.map((dep) => (
-                  <option key={dep.id} value={dep.id}>
-                    {dep.name}
-                  </option>
-                ))}
-              </select>
+              {/* <select
+    value={editFormData.department}
+    onChange={(e) =>
+      setEditFormData({ ...editFormData, department: e.target.value })
+    }
+    className="mt-1 block w-full rounded-lg border border-gray-300 bg-white dark:bg-gray-800 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:text-gray-200"
+  >
+    <option value="">Select Department</option>
+    {departments.map((dept) => (
+      <option key={dept.id} value={dept.name}>
+        {dept.name}
+      </option>
+    ))}
+  </select> */}
+ <select
+  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:text-gray-200"
+  value={editFormData.department_id ?? ""}
+onChange={(e) => handleEditFormChange("department_id", Number(e.target.value))}
+
+>
+  {departments.map((d) => (
+    <option key={d.id} value={d.id}>
+      {d.name}
+    </option>
+  ))}
+</select>
+
+
               {departments.length === 0 && !loading && (
                 <p className="text-xs text-red-500 mt-1">
                   No departments available
@@ -756,7 +758,7 @@ const getDepartmentName = (departmentId, departments = []) => {
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </label>
-              <select
+              {/* <select
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 value={editFormData.lead}
                 onChange={(e) =>
@@ -775,7 +777,25 @@ const getDepartmentName = (departmentId, departments = []) => {
                     {lead.name}
                   </option>
                 ))}
-              </select>
+              </select> */}
+              <select
+  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+  value={editFormData.supervisor_id ?? ""}
+onChange={(e) => handleEditFormChange("supervisor_id", Number(e.target.value))}
+
+  required
+  disabled={leads.length === 0}
+>
+  <option value="">
+    {leads.length === 0 ? "Loading Leads..." : "Select lead..."}
+  </option>
+  {leads.map((lead) => (
+    <option key={lead.id} value={lead.id}>
+      {lead.name}
+    </option>
+  ))}
+</select>
+
               {leads.length === 0 && !loading && (
                 <p className="text-xs text-red-500 mt-1">No Leads available</p>
               )}
@@ -786,7 +806,7 @@ const getDepartmentName = (departmentId, departments = []) => {
               </label>
               <select
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                value={editFormData.is_active ? "true" : "false"}
+                value={editFormData.is_active ? "true" : "false" ?? ""}
                 onChange={(e) =>
                   handleEditFormChange("is_active", e.target.value === "true")
                 }
@@ -869,7 +889,7 @@ const getDepartmentName = (departmentId, departments = []) => {
   </label>
   <select
     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-    value={editFormData.meeting_eligibility?.can_take_contract ? "true" : "false"}
+    value={editFormData.meeting_eligibility?.can_take_contract ? "true" : "false" ?? ""}
     onChange={(e) =>
       handleEditFormChange("can_take_contract", e.target.value === "true", true)
     }
@@ -906,7 +926,7 @@ const getDepartmentName = (departmentId, departments = []) => {
                 max="100"
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                 placeholder="Enter priority (1-100)"
-                value={editFormData.priority || ""}
+                value={editFormData.priority ?? ""}
                 onChange={(e) =>
                   handleEditFormChange("priority", Number(e.target.value))
                 }
@@ -1059,18 +1079,7 @@ const getDepartmentName = (departmentId, departments = []) => {
       </div>
     </div>
   );
- } catch (err) {
-    console.error("Silent error in AddUserPage:", err);
 
-    // ✅ reload the page silently after small delay
-    if (typeof window !== "undefined") {
-      setTimeout(() => {
-        window.location.reload();
-      }, 100); // reload after 100ms
-    }
-
-    return null; // render nothing while reloading
-  }
 }
 
 
