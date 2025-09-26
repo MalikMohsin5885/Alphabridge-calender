@@ -518,6 +518,40 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
     }
   };
 
+  // helper function
+ const handleMeetingDescription = async (newDescription) => {
+  if (!selectedMeeting) return;
+
+  const fullMeeting = {
+    ...selectedMeeting,
+    description: newDescription,
+    title: selectedMeeting.title ?? "Untitled",
+    date: selectedMeeting.date,
+    start_time: selectedMeeting.start_time,
+    end_time: selectedMeeting.end_time,
+    meeting_type: selectedMeeting.meeting_type,
+    department: selectedMeeting.department,
+    assignee: selectedMeeting.assignee,
+    cc_members: selectedMeeting.cc_members || [],
+    remarks: selectedMeeting.remarks || "",
+    jd_link: selectedMeeting.jd_link || "",
+    resume_link: selectedMeeting.resume_link || "",
+  };
+
+  try {
+    await editMeeting(fullMeeting.id, fullMeeting); // direct API call
+    setSelectedMeeting((prev) => ({ ...prev, description: newDescription }));
+    setDescriptionEditMode(false);
+    toast.success("Description updated!");
+  } catch (err) {
+    console.error("Failed to update description:", err);
+    toast.error("Failed to update description");
+  }
+};
+
+
+
+
   // Handle edit field change
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({ ...prev, [field]: value }));
@@ -1186,36 +1220,69 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
   </div>
 
   {descriptionEditMode ? (
+    // <div className="space-y-2">
+    //   <textarea
+    //     className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
+    //     value={editedDescription}
+    //     onChange={(e) => setEditedDescription(e.target.value)}
+    //     placeholder="Enter description..."
+    //   />
+    //   <div className="flex gap-2">
+    //     <Button
+    //       size="sm"
+    //       variant="default"
+    //       onClick={() => {
+    //         selectedMeeting.description = editedDescription; // local update
+    //         setDescriptionEditMode(false);
+    //       }}
+    //     >
+    //       <Check className="w-3 h-3" /> Save
+    //     </Button>
+    //     <Button
+    //       size="sm"
+    //       variant="outline"
+    //       onClick={() => {
+    //         setEditedDescription(selectedMeeting?.description || "");
+    //         setDescriptionEditMode(false);
+    //       }}
+    //     >
+    //       <X className="w-3 h-3" /> Cancel
+    //     </Button>
+    //   </div>
+    // </div>
     <div className="space-y-2">
-      <textarea
-        className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
-        value={editedDescription}
-        onChange={(e) => setEditedDescription(e.target.value)}
-        placeholder="Enter description..."
-      />
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          variant="default"
-          onClick={() => {
-            selectedMeeting.description = editedDescription; // local update
-            setDescriptionEditMode(false);
-          }}
-        >
-          <Check className="w-3 h-3" /> Save
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setEditedDescription(selectedMeeting?.description || "");
-            setDescriptionEditMode(false);
-          }}
-        >
-          <X className="w-3 h-3" /> Cancel
-        </Button>
-      </div>
-    </div>
+  <textarea
+    className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-3 text-gray-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100 placeholder-gray-400 min-h-[80px] resize-none"
+    value={editedDescription}
+    onChange={(e) => setEditedDescription(e.target.value)}
+    placeholder="Enter description..."
+  />
+  <div className="flex gap-2">
+     <Button
+  size="sm"
+  variant="default"
+  onClick={() => {
+    handleMeetingDescription(editedDescription);
+    setDescriptionEditMode(false);
+  }}
+>
+  <Check className="w-3 h-3" /> Save
+</Button>
+
+
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => {
+        setEditedDescription(selectedMeeting?.description || "");
+        setDescriptionEditMode(false);
+      }}
+    >
+      <X className="w-3 h-3" /> Cancel
+    </Button>
+  </div>
+</div>
+
   ) : (
     <div className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-4">
       <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
