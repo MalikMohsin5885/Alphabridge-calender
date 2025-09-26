@@ -1542,6 +1542,8 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                   </div>
                 </div>
                 <div className="mb-2">
+                  {user.role !== "BD" && user.role !== "BD_Lead" && (
+                     <>
                   <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
                     Assignee
                   </label>
@@ -1576,6 +1578,8 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                         </option>
                       ))}
                   </select>
+                  </>
+                  )}
                   <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
                     CC Members
                   </label>
