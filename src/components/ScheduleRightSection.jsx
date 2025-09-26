@@ -66,6 +66,7 @@ export default function ScheduleRightSection({ selectedDate }) {
   const [allDepartments, setAllDepartments] = React.useState([]);
   const [isCreatingMeeting, setIsCreatingMeeting] = React.useState(false);
   const [descriptionEditMode, setDescriptionEditMode] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
 const [editedDescription, setEditedDescription] = React.useState(selectedMeeting?.description || "");
 
   const [addForm, setAddForm] = React.useState({
@@ -163,6 +164,15 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
     return department ? department.name : "N/A";
   };
 
+  const handleEditMeetingWrapper = async () => {
+  if (isSaving) return; // prevent double clicks
+  setIsSaving(true);
+  try {
+    await handleEditMeeting(); // your original function
+  } finally {
+    setIsSaving(false); // always re-enable
+  }
+};
   React.useEffect(() => {
   const now = new Date();
   const currentIndex = getSlotIndex(
@@ -1765,22 +1775,35 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                   </div>
                 </div>
               </DialogDescription>
+             
               <div className="flex gap-2 mt-4">
-                <Button
-                  variant="default"
-                  className="flex-1 flex items-center gap-2"
-                  onClick={handleEditMeeting}
-                >
-                  <Check className="w-4 h-4" /> Save
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 flex items-center gap-2"
-                  onClick={cancelEdit}
-                >
-                  <X className="w-4 h-4" /> Cancel
-                </Button>
-              </div>
+  <Button
+    variant="default"
+    className="flex-1 flex items-center gap-2"
+    onClick={handleEditMeetingWrapper}
+    disabled={isSaving} // disable while saving
+  >
+    {isSaving ? (
+      <>
+        <span className="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
+        Saving...
+      </>
+    ) : (
+      <>
+        <Check className="w-4 h-4" /> Save
+      </>
+    )}
+  </Button>
+  <Button
+    variant="outline"
+    className="flex-1 flex items-center gap-2"
+    onClick={cancelEdit}
+    disabled={isSaving} // optional: block cancel during save
+  >
+    <X className="w-4 h-4" /> Cancel
+  </Button>
+</div>
+
             </div>
           )}
         </DialogContent>
