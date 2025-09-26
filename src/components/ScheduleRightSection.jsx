@@ -90,6 +90,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
   const isCurrentUser = (email) => {
   return email === user?.email;
 };
+ 
   // Fetch users and departments from API on mount
   React.useEffect(() => {
     const loadData = async () => {
@@ -127,6 +128,36 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
   }, []);
 
   React.useEffect(() => setMounted(true), []);
+
+  React.useEffect(() => {
+  if (selectedMeeting && selectedMeeting.remarks) {
+    const remarksMap = {};
+
+    selectedMeeting.remarks.forEach(r => {
+      // find the matching participant by name
+      const participant =
+        selectedMeeting.assignee?.name === r.user
+          ? selectedMeeting.assignee
+          : selectedMeeting.participants.find(p => p.user.name === r.user)?.user;
+
+      if (participant) {
+        const userId = participant.id;
+        // keep only the latest remark per user
+        if (!remarksMap[userId] || r.id > remarksMap[userId].id) {
+          remarksMap[userId] = { id: r.id, text: r.remark };
+        }
+      }
+    });
+
+    // flatten into userId → remarkText
+    const mapped = {};
+    Object.keys(remarksMap).forEach(uid => {
+      mapped[uid] = remarksMap[uid].text;
+    });
+
+    setParticipantRemarks(mapped);
+  }
+}, [selectedMeeting]);
 
   // Helper function to get department name by ID
   const getDepartmentName = (departmentId) => {
@@ -314,7 +345,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
     setEditData(null);
     setModalOpen(true);
   };
-
+  
   // Handle edit button
   const startEdit = () => {
     console.log("startEdit called, selectedMeeting:", selectedMeeting);
