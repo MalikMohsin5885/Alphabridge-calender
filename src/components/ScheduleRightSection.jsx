@@ -29,6 +29,7 @@ import { useUser } from "../context/UserContext";
 import {
   fetchMeetings,
   addMeeting,
+  addRemark ,
   editMeeting,
   updateMeetingRemarks,
 } from "../services/meetingService";
@@ -163,7 +164,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
     console.log("Found department:", department);
     return department ? department.name : "N/A";
   };
-
+  
   const handleEditMeetingWrapper = async () => {
   if (isSaving) return; // prevent double clicks
   setIsSaving(true);
@@ -528,6 +529,56 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
     }
   };
 
+  const handleSaveRemarks = async () => {
+  if (!selectedMeeting) return;
+
+  try {
+    setSavingRemarks(true);
+
+    // find the current logged-in user (assignee or participant)
+    const currentUser =
+      selectedMeeting.assignee && isCurrentUser(selectedMeeting.assignee.email)
+        ? selectedMeeting.assignee
+        : selectedMeeting.other_participants?.find((p) =>
+            isCurrentUser(p.user.email)
+          )?.user;
+
+    if (!currentUser) {
+      console.error("No current user found for remarks");
+      setSavingRemarks(false);
+      return;
+    }
+
+    const userId = currentUser.id;
+    const remarkText = participantRemarks[userId] || "";
+
+    if (!remarkText.trim()) {
+      console.warn("Empty remark not saved");
+      setSavingRemarks(false);
+      setRemarksEditMode(false);
+      return;
+    }
+
+    console.log("Saving remark:", { meetingId: selectedMeeting.id, remarkText });
+
+    // call your API
+    await addRemark(selectedMeeting.id, remarkText);
+
+    // update UI locally
+    setParticipantRemarks((prev) => ({
+      ...prev,
+      [userId]: remarkText,
+    }));
+
+    setRemarksEditMode(false);
+  } catch (err) {
+    console.error("Failed to save remark:", err);
+  } finally {
+    setSavingRemarks(false);
+  }
+};
+
+
   // helper function
  const handleMeetingDescription = async (newDescription) => {
   if (!selectedMeeting) return;
@@ -567,41 +618,42 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
     setEditData((prev) => ({ ...prev, [field]: value }));
   };
 
+
   // Handle saving remarks
-  const handleSaveRemarks = async () => {
-    if (!selectedMeeting || !remarksText.trim()) {
-      toast.error("Please enter some remarks to save.");
-      return;
-    }
+  // const handleSaveRemarks = async () => {
+  //   if (!selectedMeeting || !remarksText.trim()) {
+  //     toast.error("Please enter some remarks to save.");
+  //     return;
+  //   }
 
-    setSavingRemarks(true);
-    try {
-      await updateMeetingRemarks(selectedMeeting.id, remarksText.trim());
+  //   setSavingRemarks(true);
+  //   try {
+  //     await updateMeetingRemarks(selectedMeeting.id, remarksText.trim());
 
-      // Update the selected meeting with new remarks
-      setSelectedMeeting((prev) => ({
-        ...prev,
-        remarks: remarksText.trim(),
-      }));
+  //     // Update the selected meeting with new remarks
+  //     setSelectedMeeting((prev) => ({
+  //       ...prev,
+  //       remarks: remarksText.trim(),
+  //     }));
 
-      // Update the meeting in the meetings list
-      setMeetings((prev) =>
-        prev.map((meeting) =>
-          meeting.id === selectedMeeting.id
-            ? { ...meeting, remarks: remarksText.trim() }
-            : meeting
-        )
-      );
+  //     // Update the meeting in the meetings list
+  //     setMeetings((prev) =>
+  //       prev.map((meeting) =>
+  //         meeting.id === selectedMeeting.id
+  //           ? { ...meeting, remarks: remarksText.trim() }
+  //           : meeting
+  //       )
+  //     );
 
-      setRemarksEditMode(false);
-      toast.success("Remarks saved successfully!");
-    } catch (error) {
-      console.error("Failed to save remarks:", error);
-      toast.error(`Failed to save remarks: ${error.message}`);
-    } finally {
-      setSavingRemarks(false);
-    }
-  };
+  //     setRemarksEditMode(false);
+  //     toast.success("Remarks saved successfully!");
+  //   } catch (error) {
+  //     console.error("Failed to save remarks:", error);
+  //     toast.error(`Failed to save remarks: ${error.message}`);
+  //   } finally {
+  //     setSavingRemarks(false);
+  //   }
+  // };
 
   // Handle starting remarks edit
   const startRemarksEdit = () => {

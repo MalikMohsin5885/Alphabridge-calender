@@ -62,6 +62,27 @@ export const addMeeting = async (meetingData) => {
 
   return response.json();
 };
+export const addRemark = async (meetingId, remarkText) => {
+  const headers = getAuthHeaders();
+  console.log("👉 Sending remark API call", {
+    meetingId,
+    remarkText,
+    headers,
+  });
+
+  const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/remarks/`, {
+  method: "POST",
+  headers,
+  body: JSON.stringify({ remark: remarkText }),
+});
+
+
+  if (!response.ok) {
+    throw new Error(`Failed to save remark: ${response.statusText}`);
+  }
+
+  return response.json();
+};
 
 // Edit an existing meeting
 export const editMeeting = async (meetingId, meetingData) => {
