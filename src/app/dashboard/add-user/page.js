@@ -162,21 +162,31 @@ const [formData, setFormData] = useState(emptyForm);
     setSubmitting(true);
 
     try {
-      await addUser({
-  name: formData.name,
-  email: formData.email,
-  password: formData.password,
-  role_id: formData.role_id,
-  department_id: formData.department_id,
-  supervisor_id: formData.supervisor_id,
-  is_active: formData.is_active,
-  meeting_eligibility: {
-    departments: formData.meeting_eligibility.departments,
-    priority: formData.priority,
-    can_take_contract: formData.meeting_eligibility.can_take_contract,
-    can_take_w2: formData.meeting_eligibility.can_take_w2,
-  },
-});
+      // determine if selected role is BD or BD Lead
+      const selectedRole = roles.find(r => r.id === formData.role_id);
+      const roleName = selectedRole?.name?.toLowerCase?.() || "";
+      const isBD = roleName === "bd" || roleName === "bd_lead" || roleName === "bd-lead";
+
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role_id: formData.role_id,
+        department_id: formData.department_id,
+        supervisor_id: formData.supervisor_id,
+        is_active: formData.is_active,
+      };
+
+      if (!isBD) {
+        payload.meeting_eligibility = {
+          departments: formData.meeting_eligibility.departments,
+          priority: formData.priority,
+          can_take_contract: formData.meeting_eligibility.can_take_contract,
+          can_take_w2: formData.meeting_eligibility.can_take_w2,
+        };
+      }
+
+      await addUser(payload);
 
 
       // Refresh the users list
@@ -184,16 +194,7 @@ const [formData, setFormData] = useState(emptyForm);
       setUsers(usersData || []);
 
       // Reset form and close dialog
-      setFormData({
-        name: "",
-        email: "",
-        password: "",
-        role: "",
-        department: "",
-        lead: "",
-        is_active: true,
-        priority: "",
-      });
+      setFormData(emptyForm);
       setDialogOpen(false);
       toast.success("User added successfully!");
     } catch (error) {
@@ -210,23 +211,33 @@ const [formData, setFormData] = useState(emptyForm);
 
     try {
      // Replace existing updateUser(...) call inside handleEditSubmit with this payload:
-     await updateUser(editingUser.id, {
-  name: editFormData.name,
-  email: editFormData.email,
-  role_id: editFormData.role_id,
-  department_id: editFormData.department_id,
-  supervisor_id: editFormData.supervisor_id,
-  priority: editFormData.priority,
-  is_active: editFormData.is_active,
-  meeting_eligibilities: [
-    {
-      departments: editFormData.meeting_eligibility?.departments || [],
-      priority: editFormData.meeting_eligibility?.priority ?? 1,
-      can_take_contract: !!editFormData.meeting_eligibility?.can_take_contract,
-      can_take_w2: !!editFormData.meeting_eligibility?.can_take_w2,
-    },
-  ],
-});
+      // determine if selected role is BD or BD Lead for edit
+      const selectedEditRole = roles.find(r => r.id === editFormData.role_id);
+      const editRoleName = selectedEditRole?.name?.toLowerCase?.() || "";
+      const isEditBD = editRoleName === "bd" || editRoleName === "bd_lead" || editRoleName === "bd-lead";
+
+      const updatePayload = {
+        name: editFormData.name,
+        email: editFormData.email,
+        role_id: editFormData.role_id,
+        department_id: editFormData.department_id,
+        supervisor_id: editFormData.supervisor_id,
+        priority: editFormData.priority,
+        is_active: editFormData.is_active,
+      };
+
+      if (!isEditBD) {
+        updatePayload.meeting_eligibilities = [
+          {
+            departments: editFormData.meeting_eligibility?.departments || [],
+            priority: editFormData.meeting_eligibility?.priority ?? 1,
+            can_take_contract: !!editFormData.meeting_eligibility?.can_take_contract,
+            can_take_w2: !!editFormData.meeting_eligibility?.can_take_w2,
+          },
+        ];
+      }
+
+      await updateUser(editingUser.id, updatePayload);
 
 
 
@@ -256,30 +267,46 @@ const [formData, setFormData] = useState(emptyForm);
   };
 
  const handleEditUser = (user) => {
-  const dept = departments.find((d) => d.id === user.department_id);
+  // Helper to match by id or name or nested object
+  const resolveByIdOrName = (list = [], possible) => {
+    if (!Array.isArray(list) || !possible) return null;
+    return (
+      list.find((item) => {
+        // direct id match (loose)
+        if (item.id != null && (String(item.id) === String(possible) || item.id === possible)) return true;
+        // possible is object with id
+        if (possible && typeof possible === 'object') {
+          if (possible.id != null && String(item.id) === String(possible.id)) return true;
+          if (possible.name && item.name === possible.name) return true;
+        }
+        // name match
+        if (item.name && String(item.name) === String(possible)) return true;
+        return false;
+      }) || null
+    );
+  };
 
-  const role = roles.find((r) => r.name === user.role);
-  const lead = leads.find((l) => l.name === user.supervisor);
+  const dept = resolveByIdOrName(departments, user.department_id || user.department || user.department?.id || user.department?.name);
+  const role = resolveByIdOrName(roles, user.role_id || user.role || user.role?.id || user.role?.name);
+  const lead = resolveByIdOrName(leads, user.supervisor_id || user.supervisor || user.supervisor?.id || user.supervisor?.name || user.lead || user.lead_id);
+
   setEditingUser(user);
-  // user.department_id || user.department?.id||
-  //user.role_id || user.role?.id
   const me = (user.meeting_eligibilities && user.meeting_eligibilities[0]) || {};
   setEditFormData({
-  name: user.name || "",
-  email: user.email || "",
-  role_id: role ? role.id : "",
-  department_id: dept ? dept.id : "",
-  supervisor_id: lead ? lead.id : "",
-  priority: user.priority ?? me.priority ?? "",
-  is_active: user.is_active ?? true,
-  meeting_eligibility: {
-    departments: Array.isArray(me.departments) ? [...me.departments] : [],
-    priority: me.priority ?? user.priority ?? 1,
-    can_take_contract: !!me.can_take_contract,
-    can_take_w2: !!me.can_take_w2,
-  },
-});
-
+    name: user.name || "",
+    email: user.email || "",
+    role_id: role ? role.id : (user.role_id ?? ""),
+    department_id: dept ? dept.id : (user.department_id ?? user.department?.id ?? ""),
+    supervisor_id: lead ? lead.id : (user.supervisor_id ?? user.supervisor?.id ?? ""),
+    priority: user.priority ?? me.priority ?? "",
+    is_active: user.is_active ?? true,
+    meeting_eligibility: {
+      departments: Array.isArray(me.departments) ? [...me.departments] : [],
+      priority: me.priority ?? user.priority ?? 1,
+      can_take_contract: !!me.can_take_contract,
+      can_take_w2: !!me.can_take_w2,
+    },
+  });
 
   setEditDialogOpen(true);
 };
@@ -335,6 +362,13 @@ const getDepartmentName = (departmentId, departments = []) => {
     const lead = leads.find((s) => s.id === leadId);
     return lead ? lead.name : `User ${leadId}`;
   };
+
+  // Helper to check if selected role is BD or BD Lead (handles naming variations)
+  const getRoleNameById = (id) => {
+    const r = roles.find((x) => x.id === id);
+    return r?.name?.toLowerCase?.() || "";
+  };
+
 
   if (loading) {
     return (
@@ -413,17 +447,18 @@ const getDepartmentName = (departmentId, departments = []) => {
                     <span className="text-red-500 ml-1">*</span>
                   )}
                 </label>
-                 <select
-  value={formData.role_id ?? ""}
-  onChange={(e) => handleFormChange("role_id", Number(e.target.value))}
->
-  <option value="">Select a role</option>
-  {roles.map((role) => (
-    <option key={role.id} value={role.id}>
-      {role.name}
-    </option>
-  ))}
-</select>
+                <select
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  value={formData.role_id ?? ""}
+                  onChange={(e) => handleFormChange("role_id", Number(e.target.value))}
+                >
+                  <option value="">Select a role</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
 
                 {roles.length === 0 && !loading && (
                   <p className="text-xs text-red-500 mt-1">
@@ -439,16 +474,17 @@ const getDepartmentName = (departmentId, departments = []) => {
                   )}
                 </label>
                 <select
-  value={formData.department_id ?? ""}
-  onChange={(e) => handleFormChange("department_id", Number(e.target.value))}
->
-  <option value="">Select a department</option>
-  {departments.map((dept) => (
-    <option key={dept.id} value={dept.id}>
-      {dept.name}
-    </option>
-  ))}
-</select>
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  value={formData.department_id ?? ""}
+                  onChange={(e) => handleFormChange("department_id", Number(e.target.value))}
+                >
+                  <option value="">Select a department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
 
                 {departments.length === 0 && !loading && (
                   <p className="text-xs text-red-500 mt-1">
@@ -464,16 +500,17 @@ const getDepartmentName = (departmentId, departments = []) => {
                   )}
                 </label>
               <select
-  value={formData.supervisor_id ?? ""}
-  onChange={(e) => handleFormChange("supervisor_id", Number(e.target.value))}
->
-  <option value="">Select a supervisor</option>
-  {users.map((user) => (
-    <option key={user.id} value={user.id}>
-      {user.name}
-    </option>
-  ))}
-</select>
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                value={formData.supervisor_id ?? ""}
+                onChange={(e) => handleFormChange("supervisor_id", Number(e.target.value))}
+              >
+                <option value="">Select a supervisor</option>
+                {leads.map((lead) => (
+                  <option key={lead.id} value={lead.id}>
+                    {lead.name}
+                  </option>
+                ))}
+              </select>
 
                 {leads.length === 0 && !loading && (
                   <p className="text-xs text-red-500 mt-1">
@@ -497,7 +534,12 @@ const getDepartmentName = (departmentId, departments = []) => {
                 </select>
               </div>
              {/* Eligible Departments (multi-select with chips) */}
-<div>
+{(() => {
+  const rn = getRoleNameById(formData.role_id);
+  const isBD = rn === "bd" || rn === "bd_lead" || rn === "bd-lead";
+  if (isBD) return null;
+  return (
+    <div>
   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
     Eligible Departments For Calls
   </label>
@@ -563,11 +605,17 @@ const getDepartmentName = (departmentId, departments = []) => {
       ))}
     </select>
   </div>
-</div>
-
+    </div>
+  );
+})()}
 
 {/* Can Take Contract */}
-<div>
+{(() => {
+  const rn = getRoleNameById(formData.role_id);
+  const isBD = rn === "bd" || rn === "bd_lead" || rn === "bd-lead";
+  if (isBD) return null;
+  return (
+    <div>
   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
     Can Take Contract
   </label>
@@ -585,10 +633,17 @@ const getDepartmentName = (departmentId, departments = []) => {
     <option value="true">Yes</option>
     <option value="false">No</option>
   </select>
-</div>
+    </div>
+  );
+})()}
 
 {/* Can Take W2 */}
-<div>
+{(() => {
+  const rn = getRoleNameById(formData.role_id);
+  const isBD = rn === "bd" || rn === "bd_lead" || rn === "bd-lead";
+  if (isBD) return null;
+  return (
+    <div>
   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
     Can Take W2
   </label>
@@ -607,7 +662,9 @@ const getDepartmentName = (departmentId, departments = []) => {
     <option value="true">Yes</option>
     <option value="false">No</option>
   </select>
-</div>
+    </div>
+  );
+})()}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -732,11 +789,11 @@ onChange={(e) => handleEditFormChange("role_id", Number(e.target.value))}
     ))}
   </select> */}
  <select
-  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:text-gray-200"
+  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
   value={editFormData.department_id ?? ""}
-onChange={(e) => handleEditFormChange("department_id", Number(e.target.value))}
-
+  onChange={(e) => handleEditFormChange("department_id", Number(e.target.value))}
 >
+  <option value="">Select a department</option>
   {departments.map((d) => (
     <option key={d.id} value={d.id}>
       {d.name}
@@ -816,7 +873,12 @@ onChange={(e) => handleEditFormChange("supervisor_id", Number(e.target.value))}
               </select>
             </div>
             {/* --- Eligible Departments (edit modal) --- */}
-<div>
+{(() => {
+  const rn = getRoleNameById(editFormData.role_id);
+  const isBD = rn === "bd" || rn === "bd_lead" || rn === "bd-lead";
+  if (isBD) return null;
+  return (
+    <div>
   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
     Eligible Departments For Calls
   </label>
@@ -880,10 +942,17 @@ onChange={(e) => handleEditFormChange("supervisor_id", Number(e.target.value))}
       ))}
     </select>
   </div>
-</div>
+    </div>
+  );
+})()}
 
 {/* Can Take Contract (edit modal) */}
-<div>
+{(() => {
+  const rn = getRoleNameById(editFormData.role_id);
+  const isBD = rn === "bd" || rn === "bd_lead" || rn === "bd-lead";
+  if (isBD) return null;
+  return (
+    <div>
   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
     Can Take Contract
   </label>
@@ -897,10 +966,17 @@ onChange={(e) => handleEditFormChange("supervisor_id", Number(e.target.value))}
     <option value="true">Yes</option>
     <option value="false">No</option>
   </select>
-</div>
+    </div>
+  );
+})()}
 
 {/* Can Take W2 (edit modal) */}
-<div>
+{(() => {
+  const rn = getRoleNameById(editFormData.role_id);
+  const isBD = rn === "bd" || rn === "bd_lead" || rn === "bd-lead";
+  if (isBD) return null;
+  return (
+    <div>
   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
     Can Take W2
   </label>
@@ -914,7 +990,9 @@ onChange={(e) => handleEditFormChange("supervisor_id", Number(e.target.value))}
     <option value="true">Yes</option>
     <option value="false">No</option>
   </select>
-</div>
+    </div>
+  );
+})()}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

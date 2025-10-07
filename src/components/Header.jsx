@@ -172,18 +172,20 @@ export default function Header() {
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400">Lead</span>
-                    <div className="text-gray-700 text-base dark:text-gray-300">{user?.supervisor?.name || "No lead"}</div>
+                    <div className="text-gray-700 text-base dark:text-gray-300">
+                      {typeof user?.supervisor === 'string' ? user.supervisor : user?.supervisor?.name || "No lead"}
+                    </div>
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400">Status</span>
                     <div className={`text-base font-medium capitalize ${
-                      user?.status === 'active' 
-                        ? 'text-green-600 dark:text-green-400' 
-                        : user?.status === 'inactive' 
-                        ? 'text-red-600 dark:text-red-400' 
+                      user?.is_active === true
+                        ? 'text-green-600 dark:text-green-400'
+                        : user?.is_active === false
+                        ? 'text-red-600 dark:text-red-400'
                         : 'text-gray-600 dark:text-gray-400'
                     }`}>
-                      {user?.status || "Unknown"}
+                      {user?.is_active === true ? 'Active' : user?.is_active === false ? 'Inactive' : 'Unknown'}
                     </div>
                   </div>
                 </div>

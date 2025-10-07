@@ -32,6 +32,7 @@ import {
   addRemark ,
   editMeeting,
   updateMeetingRemarks,
+  updateMeetingStatus,
 } from "../services/meetingService";
 import { fetchDepartmentsAndUsers } from "../services/departmentService";
 import MeetingBox from "@/components/schedule/MeetingBox";
@@ -82,6 +83,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
     cc_members: [], // array of users
     jd_link: "", // job description link
     resume_link: "", // resume link
+    status: "scheduled",
   });
   const [remarksEditMode, setRemarksEditMode] = React.useState(false);
   const [remarksText, setRemarksText] = React.useState("");
@@ -129,16 +131,54 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
 
   React.useEffect(() => setMounted(true), []);
 
+  // Helper to determine display color class for a meeting based on status and ownership
+  const getColorForMeeting = (meeting, isAssignedToMe, isInCC, isCreatedByMe) => {
+    const status = (meeting.status || meeting.meeting_status || "").toLowerCase();
+    if (status === "completed") {
+      return "from-green-400 to-green-300";
+    }
+    if (status === "cancelled" || status === "canceled") {
+      return "from-gray-400 to-gray-300";
+    }
+    if (status === "rescheduled") {
+      return "from-yellow-400 to-yellow-300";
+    }
+
+    // default colors based on ownership
+    if (isAssignedToMe) return "from-blue-400 to-blue-300";
+    if (isInCC || isCreatedByMe) return "from-red-400 to-red-300";
+    return "from-gray-200 to-gray-100";
+  };
+
   React.useEffect(() => {
   if (selectedMeeting && selectedMeeting.remarks) {
     const remarksMap = {};
 
-    selectedMeeting.remarks.forEach(r => {
+    selectedMeeting.remarks.forEach((r) => {
+      // skip malformed remark entries
+      if (!r || !r.user) return;
+
+      const remarkUserName = String(r.user).toLowerCase();
+
       // find the matching participant by name
-      const participant =
-        selectedMeeting.assignee?.name === r.user
-          ? selectedMeeting.assignee
-          : selectedMeeting.participants.find(p => p.user.name === r.user)?.user;
+      let participant = null;
+
+      // 1) check assignee
+      if (selectedMeeting.assignee && String(selectedMeeting.assignee.name).toLowerCase() === remarkUserName) {
+        participant = selectedMeeting.assignee;
+      }
+
+      // 2) check cc_members (mapped meetings use cc_members as array of user objects)
+      if (!participant && Array.isArray(selectedMeeting.cc_members)) {
+        const found = selectedMeeting.cc_members.find((u) => u && String(u.name).toLowerCase() === remarkUserName);
+        if (found) participant = found;
+      }
+
+      // 3) fallback: legacy participants shape (array of { user: { ... } })
+      if (!participant && Array.isArray(selectedMeeting.participants)) {
+        const found = selectedMeeting.participants.find((p) => p && p.user && String(p.user.name).toLowerCase() === remarkUserName);
+        if (found) participant = found.user;
+      }
 
       if (participant) {
         const userId = participant.id;
@@ -276,18 +316,8 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
             // Check if current user is the creator
             const isCreatedByMe = meeting.created_by === user?.id;
 
-            // Determine color based on user's role in the meeting
-            let color;
-            if (isAssignedToMe) {
-              // Blue for meetings assigned to me (To field)
-              color = "from-blue-400 to-blue-300";
-            } else if (isInCC || isCreatedByMe) {
-              // Red for meetings where I'm CC or creator but not assigned to me
-              color = "from-red-400 to-red-300";
-            } else {
-              // Default color for other meetings
-              color = "from-gray-200 to-gray-100";
-            }
+            // Determine color (considers meeting.status and ownership)
+            const color = getColorForMeeting(meeting, isAssignedToMe, isInCC, isCreatedByMe);
 
             return {
               ...meeting,
@@ -360,9 +390,74 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
       end_time: selectedMeeting.end_time
         ? selectedMeeting.end_time.substring(0, 5)
         : selectedMeeting.end?.split(" ")[0],
+      status: selectedMeeting.status || selectedMeeting.meeting_status || 'scheduled',
     };
     console.log("Setting editData:", editDataToSet);
     setEditData(editDataToSet);
+  };
+
+  // Update only status from details modal
+  const updateStatus = async (newStatus) => {
+    if (!selectedMeeting) return;
+    try {
+      console.log("updateStatus called", { meetingId: selectedMeeting.id, newStatus });
+      // call a lightweight endpoint that updates only the status
+      await updateMeetingStatus(selectedMeeting.id, newStatus);
+      console.log("updateMeetingStatus API call completed for", selectedMeeting.id);
+      // refetch meetings
+      const data = await fetchMeetings(selectedDate);
+      const mappedMeetings = data
+        .filter((meeting) => {
+          const meetingDate = new Date(`${meeting.date}T${meeting.start_time}`);
+          return (
+            meetingDate.getFullYear() === selectedDate.getFullYear() &&
+            meetingDate.getMonth() === selectedDate.getMonth() &&
+            meetingDate.getDate() === selectedDate.getDate()
+          );
+        })
+        .map((meeting) => {
+          const startDate = new Date(`${meeting.date}T${meeting.start_time}`);
+          const endDate = new Date(`${meeting.date}T${meeting.end_time}`);
+          const pad = (n) => n.toString().padStart(2, "0");
+          const start = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+          const end = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+          const assignee = meeting.to_participant?.user || null;
+          const ccMembers = meeting.other_participants?.map((p) => p.user) || [];
+          const isAssignedToMe = assignee?.id === user?.id;
+          const isInCC = ccMembers.some((m) => m.id === user?.id);
+          const isCreatedByMe = meeting.created_by === user?.id;
+          const color = getColorForMeeting(meeting, isAssignedToMe, isInCC, isCreatedByMe);
+          return {
+            ...meeting,
+            start,
+            end,
+            assignee,
+            cc_members: ccMembers,
+            meeting_type: meeting.meeting_type,
+            department_name: getDepartmentName(meeting.department),
+            created_by: { id: meeting.created_by, name: `User ${meeting.created_by}` },
+            remarks: meeting.remarks || "",
+            jd_link: meeting.jd_link || "",
+            resume_link: meeting.resume_link || "",
+            color,
+            icon: (
+              <CalendarDays
+                className={`w-5 h-5 ${isAssignedToMe ? "text-white" : isInCC || isCreatedByMe ? "text-white" : "text-gray-500"}`}
+              />
+            ),
+            isMyMeeting: isAssignedToMe,
+          };
+        });
+
+      setMeetings(mappedMeetings);
+      const updated = mappedMeetings.find((m) => m.id === selectedMeeting.id);
+      if (updated) setSelectedMeeting(updated);
+      toast.success("Meeting status updated");
+    } catch (err) {
+      console.error("Failed to update status:", err);
+      const msg = err?.message || "Failed to update meeting status";
+      toast.error(msg);
+    }
   };
 
   // Handle cancel edit
@@ -496,18 +591,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
           // Check if current user is the creator
           const isCreatedByMe = meeting.created_by === user?.id;
 
-          // Determine color based on user's role in the meeting
-          let color;
-          if (isAssignedToMe) {
-            // Blue for meetings assigned to me (To field)
-            color = "from-blue-400 to-blue-300";
-          } else if (isInCC || isCreatedByMe) {
-            // Red for meetings where I'm CC or creator but not assigned to me
-            color = "from-red-400 to-red-300";
-          } else {
-            // Default color for other meetings
-            color = "from-gray-200 to-gray-100";
-          }
+          const color = getColorForMeeting(meeting, isAssignedToMe, isInCC, isCreatedByMe);
 
           return {
             ...meeting,
@@ -809,7 +893,12 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
     }
 
     try {
-      await addMeeting(addForm);
+      const result = await addMeeting(addForm);
+      if (!result || result.ok === false) {
+        const msg = result?.message || "Failed to add meeting.";
+        toast.error(msg);
+        return;
+      }
 
       // Refetch meetings for the selected date
       const data = await fetchMeetings(selectedDate);
@@ -858,18 +947,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
           // Check if current user is the creator
           const isCreatedByMe = meeting.created_by === user?.id;
 
-          // Determine color based on user's role in the meeting
-          let color;
-          if (isAssignedToMe) {
-            // Blue for meetings assigned to me (To field)
-            color = "from-blue-400 to-blue-300";
-          } else if (isInCC || isCreatedByMe) {
-            // Red for meetings where I'm CC or creator but not assigned to me
-            color = "from-red-400 to-red-300";
-          } else {
-            // Default color for other meetings
-            color = "from-gray-200 to-gray-100";
-          }
+          const color = getColorForMeeting(meeting, isAssignedToMe, isInCC, isCreatedByMe);
 
           return {
             ...meeting,
@@ -915,11 +993,14 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
         cc_members: [],
         jd_link: "",
         resume_link: "",
+        status: "scheduled",
       });
       toast.success("Meeting created successfully!");
     } catch (err) {
       console.error("Failed to add meeting:", err);
-      toast.error("Failed to add meeting.");
+      // Display backend message if available (meetingService builds friendly message)
+      const friendly = err?.message || "Failed to add meeting.";
+      toast.error(friendly);
     } finally {
       setIsCreatingMeeting(false);
     }
@@ -1063,6 +1144,34 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="truncate">{selectedMeeting.title}</span>
+                      {/* Status badge */}
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${((selectedMeeting.status || selectedMeeting.meeting_status) || '').toLowerCase() === 'completed' ? 'bg-green-600 text-white' : ((selectedMeeting.status || selectedMeeting.meeting_status) || '').toLowerCase() === 'cancelled' || ((selectedMeeting.status || selectedMeeting.meeting_status) || '').toLowerCase() === 'canceled' ? 'bg-gray-500 text-white' : ((selectedMeeting.status || selectedMeeting.meeting_status) || '').toLowerCase() === 'rescheduled' ? 'bg-yellow-500 text-white' : 'bg-blue-600 text-white'}`}>
+                        {((selectedMeeting.status || selectedMeeting.meeting_status) || 'scheduled').toString().replace(/^[a-z]/, (c) => c.toUpperCase())}
+                      </span>
+                      {/* Inline status dropdown (visible to all roles) */}
+                      <div className="ml-2 relative inline-block">
+                        <select
+                          aria-label="Meeting status"
+                          name="meeting-status"
+                          onClick={() => console.log('status select clicked for', selectedMeeting?.id)}
+                          className="z-20 relative appearance-none cursor-pointer rounded-full px-3 py-1 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
+                          value={(selectedMeeting.status || selectedMeeting.meeting_status || 'scheduled').toLowerCase()}
+                          onChange={(e) => { console.log('status change event', e.target.value); updateStatus(e.target.value); }}
+                          style={{
+                            background: 'linear-gradient(90deg, rgba(99,102,241,0.12), rgba(139,92,246,0.06))',
+                          }}
+                        >
+                          <option value="scheduled">Scheduled</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                          <option value="rescheduled">Rescheduled</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-500">
+                            <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      </div>
                       {selectedMeeting.assignee?.id === user?.id && (
                         <span className="inline-flex items-center gap-1 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-full px-2 py-1 text-xs font-medium">
                           <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
@@ -1072,7 +1181,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                     </div>
                   </DialogTitle>
                   {/* Only show edit button if user is not a Member or Closer */}
-                  {user?.role !== "Member" && user?.role !== "Closer" && (
+                  {user?.role !== "Member" && user?.role !== "Closer" && user?.role !== "BD" && user?.role !== "BD_Lead" && (
                     <Button
                       size="icon"
                       variant="ghost"
@@ -1296,7 +1405,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                 {/* Description */}
                 <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100/50 dark:border-gray-700/50">
   <div className="flex items-center justify-between mb-3">
-    <label className="block text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
+  <label className="text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
       <FileText className="w-4 h-4 text-gray-500" />
       Description
     </label>
@@ -1389,7 +1498,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                 {/* Remarks Section */}
                 {/* <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
                   <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                       <FileText className="w-4 h-4 text-yellow-500" />
                       Meeting Remarks
                     </label>
@@ -1454,7 +1563,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                 </div> */}
 <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-yellow-100/50 dark:border-gray-700/50">
   <div className="flex items-center justify-between mb-3">
-    <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+  <label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
       <FileText className="w-4 h-4 text-yellow-500" />
       Meeting Remarks
     </label>
@@ -1605,7 +1714,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
             </div>
           )}
           {selectedMeeting && editMode && editData && (
-            <div>
+            <div className="space-y-4 p-4 bg-white/60 dark:bg-gray-800/60 rounded-xl shadow-inner border border-gray-100/50 dark:border-gray-700/50">
               <DialogTitle className="flex items-center gap-2">
                 <input
                   className="text-2xl font-bold mb-2 text-gray-800 bg-gray-100 rounded px-2 py-1 w-full dark:text-gray-100 dark:bg-gray-700"
@@ -1614,7 +1723,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                 />
               </DialogTitle>
               <DialogDescription>
-                <div className="flex gap-4 mb-2">
+                <div className="flex gap-4 mb-4">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
                       Date
@@ -1660,23 +1769,48 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                     />
                   </div>
                 </div>
-                <div className="flex gap-4 mb-2">
+                <div className="flex gap-4 mb-4">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
                       Lead Type
                     </label>
+                    {/* Present only two choices visually: W2 or Contract. Internally map contract to existing subtype if present */}
                     <select
                       className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                      value={editData.meeting_type || ""}
-                      onChange={(e) =>
-                        handleEditChange("meeting_type", e.target.value)
-                      }
+                      value={editData.meeting_type === 'W2' ? 'W2' : 'contract'}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === 'W2') {
+                          handleEditChange('meeting_type', 'W2');
+                        } else {
+                          // keep existing contract subtype if it exists, otherwise default to '10.99'
+                          const current = (editData.meeting_type || '').toString().toLowerCase();
+                          if (current === '10.99' || current === 'c2c') {
+                            handleEditChange('meeting_type', editData.meeting_type);
+                          } else {
+                            handleEditChange('meeting_type', '10.99');
+                          }
+                        }
+                      }}
                       required
                     >
-                      <option value="">Select lead type...</option>
                       <option value="W2">W2 (Permanent)</option>
-                      <option value="10.99">10.99 (Contract)</option>
-                      <option value="C2C">C2C (Contract)</option>
+                      <option value="contract">Contract</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
+                      Status
+                    </label>
+                    <select
+                      className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                      value={editData.status || 'scheduled'}
+                      onChange={(e) => handleEditChange('status', e.target.value)}
+                    >
+                      <option value="scheduled">Scheduled</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                      <option value="rescheduled">Rescheduled</option>
                     </select>
                   </div>
                   <div className="flex-1">
@@ -1701,7 +1835,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                     </select>
                   </div>
                 </div>
-                <div className="mb-2">
+                <div className="mb-4">
                   {user.role !== "BD" && user.role !== "BD_Lead" && (
                      <>
                   <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
@@ -1912,7 +2046,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
             <form onSubmit={handleAddMeeting} className="space-y-6">
               {/* Meeting Title Section */}
               <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 border border-blue-100/50 dark:border-gray-700/50 backdrop-blur-sm">
-                <label className="block text-sm font-semibold text-gray-800 mb-2 dark:text-gray-200 flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-800 mb-2 dark:text-gray-200 flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   Meeting Title
                 </label>
@@ -1927,7 +2061,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
 
               {/* Meeting Description Section */}
               <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 border border-blue-100/50 dark:border-gray-700/50 backdrop-blur-sm">
-                <label className="block text-sm font-semibold text-gray-800 mb-2 dark:text-gray-200 flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-800 mb-2 dark:text-gray-200 flex items-center gap-2">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                   Description
                 </label>
@@ -1943,7 +2077,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
               </div>
               {/* Date & Time Section */}
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-blue-100/50 dark:border-gray-700/50">
-                <label className="block text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-blue-500" />
                   Schedule Details
                 </label>
@@ -1999,7 +2133,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
               </div>
               {/* Meeting Type & Department Section */}
               <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-green-100/50 dark:border-gray-700/50">
-                <label className="block text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
                   <CalendarDays className="w-4 h-4 text-green-500" />
                   Meeting Configuration
                 </label>
@@ -2010,16 +2144,16 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                     </label>
                     <select
                       className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-green-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
-                      value={addForm.meeting_type}
-                      onChange={(e) =>
-                        handleAddFormChange("meeting_type", e.target.value)
-                      }
+                      value={addForm.meeting_type === 'W2' ? 'W2' : 'contract'}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === 'W2') handleAddFormChange('meeting_type', 'W2');
+                        else handleAddFormChange('meeting_type', '10.99');
+                      }}
                       required
                     >
-                      <option value="">Select lead type...</option>
                       <option value="W2">W2 (Permanent)</option>
-                      <option value="10.99">10.99 (Contract)</option>
-                      <option value="C2C">C2C (Contract)</option>
+                      <option value="contract">Contract</option>
                     </select>
                   </div>
                   <div>
@@ -2050,7 +2184,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
               </div>
               {/* Participants Section */}
               <div className="bg-gradient-to-r from-orange-50 to-pink-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-orange-100/50 dark:border-gray-700/50">
-                <label className="block text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
                   <Users className="w-4 h-4 text-orange-500" />
                   Meeting Participants
                 </label>
@@ -2167,7 +2301,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
 
               {/* Links Section */}
               <div className="bg-gradient-to-r from-indigo-50 to-cyan-50 dark:from-gray-800/60 dark:to-gray-700/60 rounded-xl p-4 border border-indigo-100/50 dark:border-gray-700/50">
-                <label className="block text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-800 mb-3 dark:text-gray-200 flex items-center gap-2">
                   <FileText className="w-4 h-4 text-indigo-500" />
                   Additional Resources
                 </label>

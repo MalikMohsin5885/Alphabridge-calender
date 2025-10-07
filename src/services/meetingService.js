@@ -42,6 +42,7 @@ export const addMeeting = async (meetingData) => {
     start_time: toTimeWithSeconds(meetingData.start_time),
     end_time: toTimeWithSeconds(meetingData.end_time),
     meeting_type: meetingData.meeting_type,
+    status: meetingData.status || 'scheduled',
     department: meetingData.department,
     to_id: meetingData.assignee?.id,
     cc_ids: (meetingData.cc_members || []).map(m => m.id),
@@ -57,10 +58,26 @@ export const addMeeting = async (meetingData) => {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to add meeting');
+    // try to parse error body for better message without exposing full stack
+    let errBody = null;
+    try {
+      errBody = await response.json();
+    } catch (e) {
+      try {
+        errBody = await response.text();
+      } catch (e2) {
+        errBody = null;
+      }
+    }
+
+    // prefer a short message from backend (e.g., { detail: '...' } or {message:'...'})
+    const backendMessage = errBody?.detail || errBody?.message || (typeof errBody === 'string' ? errBody : null);
+    const message = backendMessage ? `${backendMessage}` : `Failed to add meeting: ${response.status} ${response.statusText}`;
+    return { ok: false, message, status: response.status };
   }
 
-  return response.json();
+  const data = await response.json();
+  return { ok: true, data };
 };
 export const addRemark = async (meetingId, remarkText) => {
   const headers = getAuthHeaders();
@@ -93,6 +110,7 @@ export const editMeeting = async (meetingId, meetingData) => {
     start_time: toTimeWithSeconds(meetingData.start_time),
     end_time: toTimeWithSeconds(meetingData.end_time),
     meeting_type: meetingData.meeting_type,
+    status: meetingData.status || 'scheduled',
     department: meetingData.department,
     to_id: meetingData.assignee?.id,
     cc_ids: (meetingData.cc_members || []).map(m => m.id),
@@ -134,3 +152,25 @@ export const updateMeetingRemarks = async (meetingId, remarks) => {
 
   return response.json();
 }; 
+
+// Update only the status field of a meeting
+export const updateMeetingStatus = async (meetingId, status) => {
+  console.log('Calling updateMeetingStatus', { meetingId, status });
+  const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/edit`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status }),
+  });
+  console.log('updateMeetingStatus response status', response.status);
+
+  if (!response.ok) {
+    // try to parse backend message
+    let body = null;
+    try { body = await response.json(); } catch (e) { try { body = await response.text(); } catch (e2) { body = null } }
+    const backendMessage = body?.detail || body?.message || (typeof body === 'string' ? body : null);
+    const message = backendMessage ? `${backendMessage}` : `Failed to update meeting status: ${response.status} ${response.statusText}`;
+    throw new Error(message);
+  }
+
+  return response.json();
+};
