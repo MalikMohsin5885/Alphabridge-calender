@@ -50,6 +50,7 @@ import {
   debugTimezoneConversion,
   convertToPakistanTime,
 } from "@/lib/scheduleUtils";
+import CustomSelect from "@/components/ui/custom-select";
 
 // Users will be fetched from the API
 
@@ -1775,28 +1776,20 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                       Lead Type
                     </label>
                     {/* Present only two choices visually: W2 or Contract. Internally map contract to existing subtype if present */}
-                    <select
-                      className="w-full border rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    <CustomSelect
                       value={editData.meeting_type === 'W2' ? 'W2' : 'contract'}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === 'W2') {
-                          handleEditChange('meeting_type', 'W2');
-                        } else {
-                          // keep existing contract subtype if it exists, otherwise default to '10.99'
+                      onChange={(val) => {
+                        if (val === 'W2') handleEditChange('meeting_type', 'W2');
+                        else {
                           const current = (editData.meeting_type || '').toString().toLowerCase();
-                          if (current === '10.99' || current === 'c2c') {
-                            handleEditChange('meeting_type', editData.meeting_type);
-                          } else {
-                            handleEditChange('meeting_type', '10.99');
-                          }
+                          if (current === '10.99' || current === 'c2c') handleEditChange('meeting_type', editData.meeting_type);
+                          else handleEditChange('meeting_type', '10.99');
                         }
                       }}
-                      required
-                    >
-                      <option value="W2">W2 (Permanent)</option>
-                      <option value="contract">Contract</option>
-                    </select>
+                      options={[{ value: 'W2', label: 'W2 (Permanent)' }, { value: 'contract', label: 'Contract' }]}
+                      placeholder="Select lead type..."
+                      className="w-full"
+                    />
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
@@ -2142,19 +2135,16 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                     <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">
                       Lead Type
                     </label>
-                    <select
-                      className="w-full border-0 bg-white/80 dark:bg-gray-700/80 rounded-lg px-3 py-2.5 text-gray-700 focus:ring-2 focus:ring-green-400 focus:bg-white dark:focus:bg-gray-700 outline-none transition-all duration-200 shadow-sm dark:text-gray-100"
+                    <CustomSelect
                       value={addForm.meeting_type === 'W2' ? 'W2' : 'contract'}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === 'W2') handleAddFormChange('meeting_type', 'W2');
+                      onChange={(val) => {
+                        if (val === 'W2') handleAddFormChange('meeting_type', 'W2');
                         else handleAddFormChange('meeting_type', '10.99');
                       }}
-                      required
-                    >
-                      <option value="W2">W2 (Permanent)</option>
-                      <option value="contract">Contract</option>
-                    </select>
+                      options={[{ value: 'W2', label: 'W2 (Permanent)' }, { value: 'contract', label: 'Contract' }]}
+                      placeholder="Select lead type..."
+                      className="w-full"
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">

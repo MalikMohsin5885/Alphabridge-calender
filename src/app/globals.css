@@ -166,6 +166,17 @@
   .dark select {
     @apply bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400;
   }
+
+  /* Style native option panels for dark mode where supported */
+  .dark select option {
+    background-color: #1f2937; /* gray-800 */
+    color: #e5e7eb; /* gray-200 */
+  }
+
+  /* Ensure scrollbars in option lists are themed (where possible) */
+  .dark select::-webkit-scrollbar-thumb {
+    background-color: rgba(255,255,255,0.08);
+  }
   
   .dark input[type="text"]:focus,
   .dark input[type="email"]:focus,
@@ -180,6 +191,12 @@
   /* Ensure form containers have proper dark backgrounds */
   .dark form {
     @apply bg-transparent;
+  }
+
+  /* Light mode: ensure option panels are readable */
+  select option {
+    background-color: #ffffff;
+    color: #111827; /* gray-900 */
   }
   
   /* Ensure proper contrast in dark mode */
