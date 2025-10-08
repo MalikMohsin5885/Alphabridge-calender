@@ -1,7 +1,7 @@
 // userService.js
-import { getAccessToken } from './loginService';
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
-const API_AUTH_URL = 'http://127.0.0.1:8000/auth';
+// const getAccessToken = import('./loginService'); // keep for backward-compat if needed
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL_API || 'http://127.0.0.1:8000/api';
+const API_AUTH_URL = process.env.NEXT_PUBLIC_API_AUTH_URL || 'http://127.0.0.1:8000/auth';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {

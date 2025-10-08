@@ -1,12 +1,12 @@
 // loginService.js
 
-const API_BASE_URL = 'http://127.0.0.1:8000'; // Replace with your backend URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000'; // Replace with your backend URL or set NEXT_PUBLIC_API_BASE_URL
 
 import { fetchUserProfile } from './userService';
 
 export async function login(username, password) {
   try {
-    const response = await fetch(`http://127.0.0.1:8000/auth/login/`, {
+  const response = await fetch(`${API_BASE_URL}/auth/login/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: username, password }),
@@ -36,7 +36,7 @@ export async function login(username, password) {
   } catch (fetchError) {
     // Log network errors for debugging
     if (fetchError.message === 'Failed to fetch') {
-      console.error('Network error: Could not connect to server at http://127.0.0.1:8000');
+  console.error('Network error: Could not connect to server at', API_BASE_URL);
     }
     
     throw fetchError;
@@ -66,7 +66,7 @@ export async function refreshAccessToken() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) throw new Error('No refresh token available');
 
-  const response = await fetch(`http://127.0.0.1:8000/auth/refresh/`, {
+  const response = await fetch(`${API_BASE_URL}/auth/refresh/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh: refreshToken }),

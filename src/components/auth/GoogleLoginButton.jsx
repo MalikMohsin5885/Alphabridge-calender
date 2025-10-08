@@ -82,9 +82,8 @@ const GoogleLoginButton = ({ onSuccess, className = "" }) => {
 
 //   client.requestCode(); // 👈 instead of requestAccessToken()
 // };
-const codeClient = googleAuth.initCodeClient({
-  client_id:
-    "34902771404-95o6rsaurj49agpr5mihlqthi0d67v7u.apps.googleusercontent.com",
+  const codeClient = googleAuth.initCodeClient({
+  client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "34902771404-95o6rsaurj49agpr5mihlqthi0d67v7u.apps.googleusercontent.com",
   scope:
     "openid profile email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events",
   ux_mode: "popup",
@@ -99,7 +98,8 @@ const codeClient = googleAuth.initCodeClient({
     console.log("\n\nACCESS CODE =>", token);
 
     try {
-      await fetch('http://127.0.0.1:8000/auth/google/auth-code/', {
+  const backendBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
+  await fetch(`${backendBase}/auth/google/auth-code/`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
