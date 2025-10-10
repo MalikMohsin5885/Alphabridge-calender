@@ -1,6 +1,6 @@
 // loginService.js
 
-const API_BASE_URL = 'https://alphabridge-backend-799410638250.us-east4.run.app/'; // Replace with your backend URL or set NEXT_PUBLIC_API_BASE_URL
+const API_BASE_URL = 'https://alphabridge-backend-799410638250.us-east4.run.app'; // Replace with your backend URL or set NEXT_PUBLIC_API_BASE_URL
 
 import { fetchUserProfile } from './userService';
 
@@ -23,7 +23,7 @@ export async function login(username, password) {
     
     // Parse successful response
     const data = JSON.parse(responseText);
-    
+    console.log('Login successful, received tokens=-=-=-=-=-=-=-=-=-=-=-=-=-=-=');
     localStorage.setItem('access_token', data.access);
     localStorage.setItem('refresh_token', data.refresh);
 
