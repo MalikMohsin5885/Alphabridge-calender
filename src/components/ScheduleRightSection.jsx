@@ -110,7 +110,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
         setAddForm((prev) => ({
           ...prev,
           assignee:
-            user?.role === "BD"
+            user?.role === "BD" || user?.role === "BD_Lead"
               ? null
               : (Array.isArray(data.closers) && data.closers[0]) || null,
         }));
@@ -493,6 +493,22 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
 
     // If date is today, start and end time must be after current time
     const todayStr = getTodayDateString();
+
+    // Prevent selecting a date before today
+    if (editData.date < todayStr) {
+      toast.error("You cannot select a date before today.");
+      return;
+    }
+
+    // Ensure start time is before end time
+    if (editData.start_time && editData.end_time) {
+      const startMomentCheck = moment.tz(`${editData.date} ${editData.start_time}`, "America/New_York");
+      const endMomentCheck = moment.tz(`${editData.date} ${editData.end_time}`, "America/New_York");
+      if (!startMomentCheck.isBefore(endMomentCheck)) {
+        toast.error("Start time must be before end time.");
+        return;
+      }
+    }
     // if (editData.date === todayStr) {
     //   const now = new Date();
     //   const nowH = now.getHours();
@@ -514,14 +530,8 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
       const nowEastern = moment.tz(new Date(), "America/New_York");
 
       // Start & End time converted to Eastern
-      const startEastern = moment.tz(
-        `${editData.date} ${editData.start_time}`,
-        "Asia/Karachi"
-      );
-      const endEastern = moment.tz(
-        `${editData.date} ${editData.end_time}`,
-        "Asia/Karachi"
-      );
+      const startEastern = moment.tz(`${editData.date} ${editData.start_time}`, "America/New_York");
+      const endEastern = moment.tz(`${editData.date} ${editData.end_time}`, "America/New_York");
       // const endEastern = editData.end_time;
       console.log(`START EASTERN ${startEastern}\n\n`);
       console.log(`END EASTERN ${endEastern}`);
@@ -840,6 +850,15 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
       toast.error("You cannot select a date before today.");
       return;
     }
+    // Ensure start time is before end time (disallow zero-length or overnight spans)
+    if (addForm.start_time && addForm.end_time) {
+      const startMoment = moment.tz(`${addForm.date} ${addForm.start_time}`, "America/New_York");
+      const endMoment = moment.tz(`${addForm.date} ${addForm.end_time}`, "America/New_York");
+      if (!startMoment.isBefore(endMoment)) {
+        toast.error("Start time must be before end time.");
+        return;
+      }
+    }
     // If date is today, start and end time must be after current time
     const todayStr = getTodayDateString();
     // if (addForm.date === todayStr) {
@@ -864,14 +883,8 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
       const nowEastern = moment.tz(new Date(), "America/New_York");
 
       // Start & End time converted to Eastern
-      const startEastern = moment.tz(
-        `${addForm.date} ${addForm.start_time}`,
-        "America/New_York"
-      );
-      const endEastern = moment.tz(
-        `${addForm.date} ${addForm.end_time}`,
-        "America/New_York"
-      );
+      const startEastern = moment.tz(`${addForm.date} ${addForm.start_time}`, "America/New_York");
+      const endEastern = moment.tz(`${addForm.date} ${addForm.end_time}`, "America/New_York");
 
       // const startEasternE = moment.tz(`${addForm.date} ${addForm.start_time}`, "America/New_York");
       console.log(`START EASTERN ${startEastern}\n\n`);
@@ -990,7 +1003,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
         end_time: "",
         meeting_type: "",
         department: "",
-        assignee: user?.role === "BD" ? null : allUsers[0] || null,
+        assignee: user?.role === "BD" || user?.role === "BD_Lead" ? null : allUsers[0] || null,
         cc_members: [],
         jd_link: "",
         resume_link: "",
@@ -2136,7 +2149,8 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                       Lead Type
                     </label>
                     <CustomSelect
-                      value={addForm.meeting_type === 'W2' ? 'W2' : 'contract'}
+                      // show empty placeholder when no selection made
+                      value={addForm.meeting_type ? (addForm.meeting_type === 'W2' ? 'W2' : 'contract') : ''}
                       onChange={(val) => {
                         if (val === 'W2') handleAddFormChange('meeting_type', 'W2');
                         else handleAddFormChange('meeting_type', '10.99');
@@ -2180,12 +2194,12 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                 </label>
                 <div
                   className={`grid gap-4 ${
-                    user?.role === "BD"
+                    user?.role === "BD" || user?.role === "BD_Lead"
                       ? "grid-cols-1"
                       : "grid-cols-1 md:grid-cols-2"
                   }`}
                 >
-                  {user?.role !== "BD" && (
+                  {user?.role !== "BD" && user?.role !== "BD_Lead" && (
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">
                         Primary Assignee
@@ -2257,16 +2271,16 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                       onChange={(e) => {
                         const userId = Number(e.target.value);
                         if (!userId) return;
-                        const user = allUsers.find((u) => u.id === userId);
-                        // Prevent assignee from being added to CC
+                        const selectedUser = allUsers.find((u) => u.id === userId);
+                        // Prevent assignee from being added to CC (only if assignee exists)
                         if (
-                          user &&
-                          !addForm.cc_members.some((m) => m.id === user.id) &&
-                          user.id !== addForm.assignee?.id
+                          selectedUser &&
+                          !addForm.cc_members.some((m) => m.id === selectedUser.id) &&
+                          (!addForm.assignee || selectedUser.id !== addForm.assignee?.id)
                         ) {
                           handleAddFormChange("cc_members", [
                             ...addForm.cc_members,
-                            user,
+                            selectedUser,
                           ]);
                         }
                       }}
@@ -2277,7 +2291,7 @@ const [editedDescription, setEditedDescription] = React.useState(selectedMeeting
                         .filter(
                           (u) =>
                             !addForm.cc_members.some((m) => m.id === u.id) &&
-                            u.id !== addForm.assignee?.id
+                            (!addForm.assignee || u.id !== addForm.assignee?.id)
                         )
                         .map((u) => (
                           <option key={u.id} value={u.id}>
