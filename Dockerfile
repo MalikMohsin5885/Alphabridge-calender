@@ -20,8 +20,16 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Set environment variables for build
+ARG NEXT_PUBLIC_API_BASE_URL
+ARG NEXT_PUBLIC_API_BASE_URL_API
+ARG NEXT_PUBLIC_API_AUTH_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+
+# Allow passing NEXT_PUBLIC_* vars at build-time so Next.js inlines them into client bundles
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+ENV NEXT_PUBLIC_API_BASE_URL_API=${NEXT_PUBLIC_API_BASE_URL_API}
+ENV NEXT_PUBLIC_API_AUTH_URL=${NEXT_PUBLIC_API_AUTH_URL}
 
 # Build the Next.js application
 RUN npm run build

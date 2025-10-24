@@ -6,6 +6,17 @@ import { fetchUserProfile } from './userService';
 
 export async function login(username, password) {
   try {
+    // Debug: print what URL we will call and environment values
+    try {
+      console.debug('[loginService] API_BASE_URL (inlined):', API_BASE_URL);
+      console.debug('[loginService] process.env.NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
+      console.debug('[loginService] Full login endpoint:', `${API_BASE_URL}/auth/login/`);
+    } catch (e) {
+      // In case console or process is not available for some reason
+      // (defensive, should rarely happen in browser)
+      console.warn('[loginService] Debug log failed:', e && e.message ? e.message : e);
+    }
+
   const response = await fetch(`${API_BASE_URL}/auth/login/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -14,6 +25,14 @@ export async function login(username, password) {
     
     // Get response text for error handling
     const responseText = await response.text();
+
+    // Debug: log response status and a short excerpt of the response text
+    try {
+      const excerpt = responseText ? (responseText.length > 100 ? responseText.substring(0, 100) + '...': responseText) : '<empty>';
+      console.debug('[loginService] Response status:', response.status, 'Response excerpt:', excerpt);
+    } catch (e) {
+      console.warn('[loginService] Failed to log response debug info', e && e.message ? e.message : e);
+    }
     
     if (!response.ok) {
       // Log error for debugging but don't expose sensitive details
@@ -35,8 +54,8 @@ export async function login(username, password) {
     
   } catch (fetchError) {
     // Log network errors for debugging
-    if (fetchError.message === 'Failed to fetch') {
-  console.error('Network error: Could not connect to server at', API_BASE_URL);
+    if (fetchError && fetchError.message) {
+      console.error('[loginService] Network error:', fetchError.message, 'Attempted server:', API_BASE_URL);
     }
     
     throw fetchError;
