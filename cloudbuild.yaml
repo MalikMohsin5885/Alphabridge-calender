@@ -10,13 +10,7 @@ steps:
       - 'gcr.io/$PROJECT_ID/alphabridge-calendar:$COMMIT_SHA'
       - '-t'
       - 'gcr.io/$PROJECT_ID/alphabridge-calendar:latest'
-      - '--build-arg'
-      - 'NEXT_PUBLIC_API_BASE_URL=$_NEXT_PUBLIC_API_BASE_URL'
-      - '--build-arg'
-      - 'NEXT_PUBLIC_API_BASE_URL_API=$_NEXT_PUBLIC_API_BASE_URL_API'
-      - '--build-arg'
-      - 'NEXT_PUBLIC_API_AUTH_URL=$_NEXT_PUBLIC_API_AUTH_URL'
-      - '.'
+  - '.'
 
   # Push the Docker image to Google Container Registry
   - name: 'gcr.io/cloud-builders/docker'
@@ -53,5 +47,4 @@ images:
 options:
   logging: CLOUD_LOGGING_ONLY
 
-# Example: trigger with substitutions to set client build-time env vars
-# gcloud builds submit --config=cloudbuild.yaml --substitutions=_NEXT_PUBLIC_API_BASE_URL="https://api.example.com",_NEXT_PUBLIC_API_BASE_URL_API="https://api.example.com/api",_NEXT_PUBLIC_API_AUTH_URL="https://api.example.com/auth"
+# NOTE: Removed build-time substitutions guidance since the app now has URLs hardcoded in source.

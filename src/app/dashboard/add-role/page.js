@@ -48,7 +48,7 @@ function AddRolePage() {
   const fetchRolesAndPermissions = async () => {
     setLoadingData(true);
     try {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL_API || 'http://127.0.0.1:8000/api';
+  const apiBase = 'https://alphabridge-backend-34902771404.europe-west1.run.app/api';
   const response = await fetch(`${apiBase}/roles-permissions/`, {
         headers: getAuthHeaders(),
       });
@@ -123,7 +123,7 @@ function AddRolePage() {
         remove_permissions: removePermissions
       };
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL_API || 'http://127.0.0.1:8000/api';
+  const apiBase = 'https://alphabridge-backend-34902771404.europe-west1.run.app/api';
   const response = await fetch(`${apiBase}/roles-permissions/`, {
         method: 'POST',
         headers: getAuthHeaders(),

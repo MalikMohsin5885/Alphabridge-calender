@@ -1,6 +1,6 @@
 // loginService.js
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000'; // Replace with your backend URL or set NEXT_PUBLIC_API_BASE_URL
+const API_BASE_URL = 'https://alphabridge-backend-34902771404.europe-west1.run.app'; // Replace with your backend URL or set NEXT_PUBLIC_API_BASE_URL
 
 import { fetchUserProfile } from './userService';
 
@@ -8,12 +8,9 @@ export async function login(username, password) {
   try {
     // Debug: print what URL we will call and environment values
     try {
-      console.log('[loginService] API_BASE_URL (inlined):', API_BASE_URL);
-      console.log('[loginService] process.env.NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
-      console.log('[loginService] Full login endpoint:', `${API_BASE_URL}/auth/login/`);
+      console.debug('[loginService] API_BASE_URL (hardcoded):', API_BASE_URL);
+      console.debug('[loginService] Full login endpoint:', `${API_BASE_URL}/auth/login/`);
     } catch (e) {
-      // In case console or process is not available for some reason
-      // (defensive, should rarely happen in browser)
       console.warn('[loginService] Debug log failed:', e && e.message ? e.message : e);
     }
 

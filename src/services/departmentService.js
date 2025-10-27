@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL_API || 'http://127.0.0.1:8000/api';
+const API_BASE_URL = 'https://alphabridge-backend-34902771404.europe-west1.run.app/api';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {

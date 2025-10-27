@@ -1,7 +1,7 @@
 // userService.js
 // const getAccessToken = import('./loginService'); // keep for backward-compat if needed
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL_API || 'http://127.0.0.1:8000/api';
-const API_AUTH_URL = process.env.NEXT_PUBLIC_API_AUTH_URL || 'http://127.0.0.1:8000/auth';
+const API_BASE_URL = 'https://alphabridge-backend-34902771404.europe-west1.run.app/api';
+const API_AUTH_URL = 'https://alphabridge-backend-34902771404.europe-west1.run.app/auth';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {

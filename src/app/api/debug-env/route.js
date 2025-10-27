@@ -3,12 +3,12 @@
 
 export async function GET() {
   try {
+    // Return the hardcoded values (no runtime env usage)
     const safeEnv = {
-      NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || null,
-      NEXT_PUBLIC_API_BASE_URL_API: process.env.NEXT_PUBLIC_API_BASE_URL_API || null,
-      NEXT_PUBLIC_API_AUTH_URL: process.env.NEXT_PUBLIC_API_AUTH_URL || null,
-      NODE_ENV: process.env.NODE_ENV || null,
-      // Add other vars you want to inspect below, but avoid returning secrets.
+      NEXT_PUBLIC_API_BASE_URL: 'https://alphabridge-backend-34902771404.europe-west1.run.app',
+      NEXT_PUBLIC_API_BASE_URL_API: 'https://alphabridge-backend-34902771404.europe-west1.run.app/api',
+      NEXT_PUBLIC_API_AUTH_URL: 'https://alphabridge-backend-34902771404.europe-west1.run.app/auth',
+      NODE_ENV: 'production',
     };
 
     return new Response(JSON.stringify({ ok: true, env: safeEnv }), {
