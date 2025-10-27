@@ -8,9 +8,9 @@ export async function login(username, password) {
   try {
     // Debug: print what URL we will call and environment values
     try {
-      console.debug('[loginService] API_BASE_URL (inlined):', API_BASE_URL);
-      console.debug('[loginService] process.env.NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
-      console.debug('[loginService] Full login endpoint:', `${API_BASE_URL}/auth/login/`);
+      console.log('[loginService] API_BASE_URL (inlined):', API_BASE_URL);
+      console.log('[loginService] process.env.NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
+      console.log('[loginService] Full login endpoint:', `${API_BASE_URL}/auth/login/`);
     } catch (e) {
       // In case console or process is not available for some reason
       // (defensive, should rarely happen in browser)
@@ -29,7 +29,7 @@ export async function login(username, password) {
     // Debug: log response status and a short excerpt of the response text
     try {
       const excerpt = responseText ? (responseText.length > 100 ? responseText.substring(0, 100) + '...': responseText) : '<empty>';
-      console.debug('[loginService] Response status:', response.status, 'Response excerpt:', excerpt);
+      console.log('[loginService] Response status:', response.status, 'Response excerpt:', excerpt);
     } catch (e) {
       console.warn('[loginService] Failed to log response debug info', e && e.message ? e.message : e);
     }
